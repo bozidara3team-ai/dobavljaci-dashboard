@@ -174,3 +174,12 @@ legend { font-weight: 600; padding: 0 6px; }
   opacity: 0; pointer-events: none; transition: opacity .2s;
 }
 #toast.vidljiv { opacity: 1; }
+
+.dok { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.dok:last-of-type { border-bottom: 0; }
+.dok .ime { font-weight: 600; font-size: .92rem; }
+.dok .dugmad { display: flex; gap: 4px; }
+.dok .dugmad button { padding: 2px 8px; font-size: .8rem; }
+.dok .fali { grid-column: 1 / -1; color: var(--warn); font-size: .8rem; }
+.dok.nedostupan .ime { color: var(--muted); font-weight: 400; }
+.blok.siroko { grid-column: 1 / -1; }

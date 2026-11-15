@@ -384,6 +384,8 @@
         (f.checklist && f.checklist[c.id] ? ' checked' : '') + '> ' + esc(c.tekst) + '</label>';
     }).join('') + '<p class="napomena-mala">Lista je orijentaciona – konačne zahtjeve provjerite u uputstvima na irms.tax.gov.me.</p></div>';
 
+    html += renderDokumenti(f);
+
     html += '<div class="blok"><h3>Istorija</h3><ul class="istorija">' +
       (f.istorija || []).slice().reverse().map(function (h) {
         return '<li><span class="vr">' + esc(datumPrikaz(h.vrijeme)) + '</span> ' + badge(h.status) +
@@ -446,6 +448,56 @@
     try { document.execCommand('copy'); } catch (e) { /* ignorisano */ }
     ta.remove();
   }
+
+  // ---------- osnivačka dokumenta ----------
+  function renderDokumenti(f) {
+    var docs = window.Dokumenti.zaFirmu(f);
+    return '<div class="blok siroko"><h3>Osnivačka dokumenta (opšti modeli)</h3>' +
+      docs.map(function (d) {
+        if (!d.dostupan) {
+          return '<div class="dok nedostupan"><span class="ime">' + esc(d.naziv) + '</span>' +
+            '<span class="napomena-mala">' + esc(d.razlog) + '</span></div>';
+        }
+        return '<div class="dok"><span class="ime">' + esc(d.naziv) + '</span>' +
+          '<span class="dugmad"><button type="button" data-dok-pregled="' + d.id + '">Pregled / štampa</button>' +
+          '<button type="button" data-dok-word="' + d.id + '">Word</button></span>' +
+          (d.nedostaje.length ? '<span class="fali">Nedostaje (biće prazna linija): ' + esc(d.nedostaje.join(', ')) + '</span>' : '') +
+          '</div>';
+      }).join('') +
+      '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+      '<button type="button" id="dok-svi" class="small">Preuzmi sve (Word)</button>' +
+      '<span class="napomena-mala">Opšti modeli po Zakonu o privrednim društvima. Prije potpisivanja neka ih pregleda pravnik ili računovođa.</span></div></div>';
+  }
+
+  function nadjiDokument(id) {
+    return window.Dokumenti.zaFirmu(nadji(detId)).filter(function (d) { return d.id === id; })[0];
+  }
+
+  function preuzmiWord(d, f) {
+    var bajtovi = window.Dokumenti.uDocx(d.blokovi);
+    preuzmi(d.id + '-' + slug(f.naziv) + '.docx', bajtovi,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  }
+
+  $('#det-body').addEventListener('click', function (ev) {
+    var f = nadji(detId);
+    var b = ev.target.closest('[data-dok-pregled], [data-dok-word], #dok-svi');
+    if (!b || !f) return;
+    if (b.id === 'dok-svi') {
+      var svi = window.Dokumenti.zaFirmu(f).filter(function (d) { return d.dostupan; });
+      svi.forEach(function (d, i) { setTimeout(function () { preuzmiWord(d, f); }, i * 400); });
+      toast('Preuzimam ' + svi.length + ' dokumenata…');
+      return;
+    }
+    var d = nadjiDokument(b.dataset.dokPregled || b.dataset.dokWord);
+    if (!d) return;
+    if (b.dataset.dokWord) { preuzmiWord(d, f); return; }
+    var w = window.open('', '_blank');
+    if (!w) { toast('Pregledač je blokirao novi prozor – dozvolite iskačuće prozore.'); return; }
+    w.document.open();
+    w.document.write(window.Dokumenti.dokumentHTML(d.naziv + ' – ' + f.naziv, d.blokovi, true));
+    w.document.close();
+  });
 
   $('#det-uredi').addEventListener('click', function () { dlgDet.close(); otvoriFormu(detId); });
   $('#det-obrisi').addEventListener('click', function () {

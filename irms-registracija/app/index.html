@@ -98,6 +98,7 @@
             <label>JMBG<input name="zastupnik.jmbg" inputmode="numeric" maxlength="13"></label>
             <label>Funkcija<input name="zastupnik.funkcija" placeholder="Izvršni direktor"></label>
             <label>E-mail<input name="zastupnik.email" type="email"></label>
+            <label class="span2">Adresa prebivališta<input name="zastupnik.adresa" placeholder="za osnivačka akta"></label>
           </div>
         </fieldset>
 
@@ -117,6 +118,21 @@
               </select>
             </label>
             <label>PDV od datuma<input name="pdvDatum" type="date"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Podaci za osnivačka dokumenta</legend>
+          <div class="grid">
+            <label>Mjesto donošenja akata<input name="dokumenta.mjesto" placeholder="podrazumijevano: mjesto sjedišta"></label>
+            <label>Datum donošenja akata<input name="dokumenta.datum" type="date"></label>
+            <label>Mandat direktora (godina)<input name="dokumenta.mandat" type="number" min="1" max="10" placeholder="4"></label>
+          </div>
+          <p class="napomena-mala">Punomoćnik – lice koje podnosi zahtjev na IRMS-u umjesto direktora (npr. računovođa). Nije obavezno.</p>
+          <div class="grid">
+            <label>Ime i prezime punomoćnika<input name="punomocnik.ime"></label>
+            <label>JMBG punomoćnika<input name="punomocnik.jmbg" inputmode="numeric" maxlength="13"></label>
+            <label class="span2">Adresa punomoćnika<input name="punomocnik.adresa"></label>
           </div>
         </fieldset>
 
@@ -169,8 +185,9 @@
         <label data-za="fizicko">Broj pasoša (stranci)<input data-k="pasos"></label>
         <label data-za="pravno">PIB / matični broj<input data-k="pib"></label>
         <label data-za="pravno">Država<input data-k="drzava" value="Crna Gora"></label>
+        <label data-za="pravno">Zastupnik pravnog lica<input data-k="zastupnik"></label>
         <label>Udio (%)<input data-k="udio" inputmode="decimal"></label>
-        <label class="span2">Adresa<input data-k="adresa"></label>
+        <label class="span2">Adresa (prebivalište / sjedište)<input data-k="adresa"></label>
       </div>
       <button type="button" class="ghost ukloni" aria-label="Ukloni osnivača">Ukloni</button>
     </div>
@@ -188,6 +205,7 @@
   <datalist id="banke"></datalist>
 
   <script src="validacija.js"></script>
+  <script src="dokumenti.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

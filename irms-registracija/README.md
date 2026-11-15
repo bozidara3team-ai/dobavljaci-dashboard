@@ -22,6 +22,29 @@ Otvorite `app/index.html` u pregledaču (dupli klik) – nije potreban server ni
 - Status **„Spremno za podnošenje”** može se postaviti samo kada nema grešaka u podacima.
 - Lista dokumentacije je orijentaciona – konačne zahtjeve provjerite u uputstvima na portalu IRMS.
 
+### Osnivačka dokumenta (opšti modeli)
+
+U prikazu firme, blok **Osnivačka dokumenta** pravi dokumente iz unesenih podataka:
+
+| Dokument | Kada |
+|---|---|
+| Odluka o osnivanju | DOO sa jednim osnivačem |
+| Ugovor o osnivanju | DOO sa više osnivača (iznosi uloga i udjeli se računaju iz kapitala) |
+| Statut | DOO |
+| Odluka o imenovanju izvršnog direktora | svi osim preduzetnika |
+| Izjava direktora o prihvatanju imenovanja | svi osim preduzetnika |
+| Ovlašćenje za zastupanje pred Poreskom upravom (IRMS) | kad zahtjev podnosi punomoćnik (npr. računovođa) |
+
+- **Pregled / štampa** otvara dokument spreman za štampu ili „Sačuvaj kao PDF”.
+- **Word** preuzima .docx za doradu.
+- Podaci koji nedostaju ostaju kao prazna linija `______________` i aplikacija ih navodi.
+- Za mjesto i datum akata, mandat direktora i punomoćnika popunite odjeljak
+  **Podaci za osnivačka dokumenta** u formi.
+
+> Ovo su **opšti modeli** zasnovani na Zakonu o privrednim društvima („Sl. list CG”, br. 65/20 i 146/21),
+> za novčani ulog i DOO bez odbora direktora. Prije potpisivanja neka ih pregleda pravnik ili
+> ovlašćeni računovođa. Za AD i ostale oblike osnivački akt i statut se ne prave.
+
 ## 2. IRMS asistent
 
 Potrebno: [Node.js](https://nodejs.org) 18+ i instaliran Google Chrome ili Microsoft Edge

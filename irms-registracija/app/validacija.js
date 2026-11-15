@@ -191,6 +191,12 @@
       up('zastupnik.jmbg', 'JMBG zastupnika nije unesen');
     }
 
+    var pm = f.punomocnik || {};
+    if (!prazno(pm.jmbg)) {
+      var pj = provjeriJMBG(pm.jmbg);
+      if (pj) gr('punomocnik.jmbg', 'Punomoćnik: ' + pj);
+    }
+
     (f.racuni || []).forEach(function (r, i) {
       if (prazno(r.broj)) return;
       var rr = provjeriRacun(r.broj);

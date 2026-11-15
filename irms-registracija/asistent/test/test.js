@@ -63,6 +63,72 @@ const FIRMA = {
     assert.deepStrictEqual(V.provjeriFirmu(f).errors, []);
   });
 
+  console.log('Osnivačka dokumenta');
+  const D = require('../../app/dokumenti.js');
+  const FD = Object.assign(JSON.parse(JSON.stringify(FIRMA)), {
+    kapital: '1000',
+    opisDjelatnosti: 'Računarsko programiranje',
+    dokumenta: { mjesto: 'Podgorica', datum: '2026-11-15', mandat: '4' },
+    punomocnik: { ime: 'Jelena Jelić', jmbg: '0101980215009', adresa: 'Podgorica' }
+  });
+  FD.zastupnik.adresa = 'Podgorica, Njegoševa 1';
+  FD.osnivaci.forEach((o) => { o.adresa = 'Podgorica'; });
+  const tekst = (d) => d.blokovi.map((b) => b.x || (b.lista || []).map((p) => p.ime).join(' ')).join('\n');
+  await t('dva osnivača → ugovor o osnivanju sa iznosima uloga', () => {
+    const docs = D.zaFirmu(FD);
+    const u = docs.find((d) => d.id === 'ugovor-o-osnivanju');
+    assert.ok(u && u.dostupan);
+    assert.deepStrictEqual(u.nedostaje, []);
+    const x = tekst(u);
+    assert.match(x, /Marko Marković – ulog u iznosu od 600,00 €, što čini udio od 60%/);
+    assert.match(x, /Ana Anić – ulog u iznosu od 400,00 €, što čini udio od 40%/);
+    assert.match(x, /pravo preče kupovine/);
+    assert.match(x, /15\.11\.2026\. godine/);
+  });
+  await t('jedan osnivač → odluka o osnivanju, 100%', () => {
+    const f = JSON.parse(JSON.stringify(FD));
+    f.osnivaci = [f.osnivaci[0]]; f.osnivaci[0].udio = '';
+    const docs = D.zaFirmu(f);
+    assert.ok(!docs.some((d) => d.id === 'ugovor-o-osnivanju'));
+    const o = docs.find((d) => d.id === 'odluka-o-osnivanju');
+    assert.match(tekst(o), /udjela od 100%/);
+    assert.match(tekst(docs.find((d) => d.id === 'statut')), /1\.000,00 €/);
+  });
+  await t('mandat i oblik riječi "godina"', () => {
+    assert.strictEqual(D._.godina(1), '1 godinu');
+    assert.strictEqual(D._.godina(4), '4 godine');
+    assert.strictEqual(D._.godina(5), '5 godina');
+    assert.match(tekst(D.zaFirmu(FD).find((d) => d.id === 'odluka-o-imenovanju-direktora')), /period od 4 godine/);
+  });
+  await t('nedostajući podaci se prijavljuju i ostaje prazna linija', () => {
+    const docs = D.zaFirmu({ naziv: 'X DOO', pravniOblik: 'Društvo sa ograničenom odgovornošću (DOO)' });
+    const s = docs.find((d) => d.id === 'statut');
+    assert.ok(s.nedostaje.includes('osnovni kapital'));
+    assert.match(tekst(s), /______________ €/);
+  });
+  await t('preduzetnik nema statut ni direktora', () => {
+    const docs = D.zaFirmu({ naziv: 'Y', pravniOblik: 'Preduzetnik' });
+    assert.ok(!docs.find((d) => d.id === 'statut').dostupan);
+    assert.ok(!docs.find((d) => d.id === 'odluka-o-imenovanju-direktora').dostupan);
+    assert.ok(docs.find((d) => d.id === 'ovlascenje').dostupan);
+  });
+  await t('docx je ispravan ZIP sa document.xml', () => {
+    const fs = require('fs'), os = require('os'), cp = require('child_process');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'docx-'));
+    D.zaFirmu(FD).filter((d) => d.dostupan).forEach((d) => {
+      fs.writeFileSync(path.join(dir, d.id + '.docx'), Buffer.from(D.uDocx(d.blokovi)));
+    });
+    const out = cp.execFileSync('python3', ['-c', `
+import sys, glob, zipfile, docx
+for f in sorted(glob.glob(sys.argv[1] + '/*.docx')):
+    assert zipfile.ZipFile(f).testzip() is None
+    d = docx.Document(f)
+    print(f.split('/')[-1], len(d.paragraphs), len(d.tables))
+`, dir]).toString();
+    assert.strictEqual(out.trim().split('\n').length, 5, out);
+    process.env.DOCX_DIR = dir;
+  });
+
   console.log('Asistent – logika');
   await t('formatiranje datuma', () => assert.strictEqual(P.formatiraj('2026-10-01', 'dd.mm.yyyy'), '01.10.2026'));
   await t('mapiranje vrijednosti', () => assert.strictEqual(P.vrijednost({ a: 'x' }, { izvor: 'a', mapiranje: { x: 'Iks' } }), 'Iks'));
