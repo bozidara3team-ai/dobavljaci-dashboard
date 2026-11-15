@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="sr-ME">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IRMS registracija firmi</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <div>
+        <h1>IRMS registracija firmi</h1>
+        <p class="sub">Priprema, provjera i praćenje registracije firmi na portalu Poreske uprave Crne Gore</p>
+      </div>
+      <div class="top-actions">
+        <button id="btn-nova" class="primary">+ Nova firma</button>
+        <details class="menu">
+          <summary class="btn">Podaci ▾</summary>
+          <div class="menu-list">
+            <button id="btn-izvoz-json">Izvezi rezervnu kopiju (JSON)</button>
+            <button id="btn-uvoz-json">Uvezi rezervnu kopiju</button>
+            <button id="btn-izvoz-csv">Izvezi tabelu (CSV)</button>
+            <button id="btn-izvoz-asistent">Izvezi “Spremne” za asistenta</button>
+            <input type="file" id="uvoz-fajl" accept=".json,application/json" hidden>
+          </div>
+        </details>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="statistika" class="stats" aria-label="Pregled po statusu"></section>
+
+    <section class="toolbar">
+      <input id="pretraga" type="search" placeholder="Pretraga po nazivu, PIB-u, gradu…" aria-label="Pretraga">
+      <select id="filter-status" aria-label="Filter po statusu">
+        <option value="">Svi statusi</option>
+      </select>
+    </section>
+
+    <section id="lista" class="lista" aria-live="polite"></section>
+  </main>
+
+  <!-- Forma za unos / izmjenu -->
+  <dialog id="dlg-forma" class="dlg">
+    <form id="forma" novalidate>
+      <div class="dlg-head">
+        <h2 id="forma-naslov">Nova firma</h2>
+        <button type="button" class="ghost" data-zatvori aria-label="Zatvori">✕</button>
+      </div>
+      <div class="dlg-body">
+        <fieldset>
+          <legend>Osnovni podaci</legend>
+          <div class="grid">
+            <label class="span2">Puni naziv firme *<input name="naziv" required></label>
+            <label>Skraćeni naziv<input name="skraceniNaziv"></label>
+            <label>Pravni oblik *<select name="pravniOblik" id="pravni-oblik"></select></label>
+            <label>PIB<input name="pib" inputmode="numeric" maxlength="8" placeholder="8 cifara"></label>
+            <label>Registarski broj (CRPS)<input name="registarskiBroj" placeholder="npr. 5-0123456/001"></label>
+            <label>Datum osnivanja / upisa u CRPS<input name="datumOsnivanja" type="date"></label>
+            <label>Šifra pretežne djelatnosti *<input name="sifraDjelatnosti" placeholder="npr. 62.01"></label>
+            <label class="span2">Opis djelatnosti<input name="opisDjelatnosti" placeholder="npr. Računarsko programiranje"></label>
+            <label>Osnovni kapital (€)<input name="kapital" inputmode="decimal"></label>
+            <label>Očekivani broj zaposlenih<input name="brojZaposlenih" type="number" min="0"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Sjedište</legend>
+          <div class="grid">
+            <label>Opština *<input name="sjediste.opstina" list="opstine"></label>
+            <label>Mjesto *<input name="sjediste.mjesto"></label>
+            <label>Ulica *<input name="sjediste.ulica"></label>
+            <label>Broj<input name="sjediste.broj" placeholder="ili bb"></label>
+            <label>Poštanski broj<input name="sjediste.postanskiBroj" inputmode="numeric"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Kontakt</legend>
+          <div class="grid">
+            <label>E-mail *<input name="email" type="email"></label>
+            <label>Telefon<input name="telefon" type="tel"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Osnivači / vlasnici</legend>
+          <div id="osnivaci"></div>
+          <button type="button" id="dodaj-osnivaca" class="small">+ Dodaj osnivača</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Ovlašćeno lice za zastupanje (izvršni direktor)</legend>
+          <div class="grid">
+            <label>Ime i prezime *<input name="zastupnik.ime"></label>
+            <label>JMBG<input name="zastupnik.jmbg" inputmode="numeric" maxlength="13"></label>
+            <label>Funkcija<input name="zastupnik.funkcija" placeholder="Izvršni direktor"></label>
+            <label>E-mail<input name="zastupnik.email" type="email"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Bankovni računi</legend>
+          <div id="racuni"></div>
+          <button type="button" id="dodaj-racun" class="small">+ Dodaj račun</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>PDV</legend>
+          <div class="grid">
+            <label>Registracija za PDV
+              <select name="pdvObveznik">
+                <option value="ne">Ne</option>
+                <option value="da">Da</option>
+              </select>
+            </label>
+            <label>PDV od datuma<input name="pdvDatum" type="date"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Napomena</legend>
+          <textarea name="napomena" rows="3"></textarea>
+        </fieldset>
+
+        <div id="forma-provjera" class="provjera"></div>
+      </div>
+      <div class="dlg-foot">
+        <button type="button" id="btn-provjeri">Provjeri podatke</button>
+        <span class="flex"></span>
+        <button type="button" class="ghost" data-zatvori>Otkaži</button>
+        <button type="submit" class="primary">Sačuvaj</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Detalji firme -->
+  <dialog id="dlg-detalji" class="dlg">
+    <div class="dlg-head">
+      <h2 id="det-naslov"></h2>
+      <button type="button" class="ghost" data-zatvori aria-label="Zatvori">✕</button>
+    </div>
+    <div class="dlg-body" id="det-body"></div>
+    <div class="dlg-foot">
+      <button type="button" id="det-obrisi" class="danger">Obriši</button>
+      <span class="flex"></span>
+      <button type="button" id="det-asistent">Izvoz za asistenta</button>
+      <button type="button" id="det-uredi" class="primary">Uredi podatke</button>
+    </div>
+  </dialog>
+
+  <datalist id="opstine"></datalist>
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <template id="tpl-osnivac">
+    <div class="red osnivac">
+      <div class="grid">
+        <label>Tip
+          <select data-k="tip">
+            <option value="fizicko">Fizičko lice</option>
+            <option value="pravno">Pravno lice</option>
+          </select>
+        </label>
+        <label class="span2">Ime i prezime / naziv<input data-k="ime"></label>
+        <label data-za="fizicko">JMBG<input data-k="jmbg" inputmode="numeric" maxlength="13"></label>
+        <label data-za="fizicko">Državljanstvo<input data-k="drzavljanstvo" value="Crna Gora"></label>
+        <label data-za="fizicko">Broj pasoša (stranci)<input data-k="pasos"></label>
+        <label data-za="pravno">PIB / matični broj<input data-k="pib"></label>
+        <label data-za="pravno">Država<input data-k="drzava" value="Crna Gora"></label>
+        <label>Udio (%)<input data-k="udio" inputmode="decimal"></label>
+        <label class="span2">Adresa<input data-k="adresa"></label>
+      </div>
+      <button type="button" class="ghost ukloni" aria-label="Ukloni osnivača">Ukloni</button>
+    </div>
+  </template>
+
+  <template id="tpl-racun">
+    <div class="red racun">
+      <div class="grid">
+        <label>Banka<input data-k="banka" list="banke"></label>
+        <label class="span2">Broj računa<input data-k="broj" placeholder="510-0000000000123-45"></label>
+      </div>
+      <button type="button" class="ghost ukloni" aria-label="Ukloni račun">Ukloni</button>
+    </div>
+  </template>
+  <datalist id="banke"></datalist>
+
+  <script src="validacija.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

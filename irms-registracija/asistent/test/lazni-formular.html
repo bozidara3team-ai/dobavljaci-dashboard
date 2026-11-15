@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="sr"><head><meta charset="utf-8"><title>Lažni IRMS formular (test)</title></head>
+<body>
+<form id="f" onsubmit="window.podneseno = true; return false;">
+  <label>Naziv <input id="naziv"></label>
+  <label>Skraćeni naziv <input id="skr"></label>
+  <label for="pf">Pravni oblik</label>
+  <select id="pf"><option></option><option>Društvo sa ograničenom odgovornošću</option><option>Akcionarsko društvo</option></select>
+  <label>Registarski broj <input id="reg"></label>
+  <label>Datum osnivanja <input id="dat"></label>
+  <label>Djelatnost <input id="dj"></label>
+  <label>Opština <select id="op"><option></option><option>Podgorica</option><option>Bar</option></select></label>
+  <label>Mjesto <input id="mj"></label>
+  <label>Ulica <input id="ul"></label>
+  <label>Broj <input id="br"></label>
+  <label>Poštanski broj <input id="pb"></label>
+  <label>E-mail <input id="em"></label>
+  <label>Telefon <input id="tel"></label>
+  <div id="osnivaci"></div>
+  <button type="button" onclick="dodaj()">Dodaj</button>
+  <label>Registracija za PDV <input type="checkbox" id="pdv"></label>
+  <label>Datum početka <input id="pdvdat"></label>
+  <button type="submit">Podnesi zahtjev</button>
+</form>
+<script>
+  var n = 0;
+  function dodaj() {
+    n++;
+    var d = document.createElement('div');
+    d.innerHTML = '<label>Ime i prezime <input class="o-ime"></label><label>JMBG <input class="o-jmbg"></label><label>Udio <input class="o-udio"></label>';
+    document.getElementById('osnivaci').appendChild(d);
+  }
+  dodaj();
+</script>
+</body></html>
