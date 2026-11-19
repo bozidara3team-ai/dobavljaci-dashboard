@@ -167,6 +167,33 @@
     </div>
   </dialog>
 
+  <!-- Pregled dokumenta -->
+  <dialog id="dlg-dokument" class="dlg dlg-dok">
+    <div class="dlg-head">
+      <h2 id="dok-naslov"></h2>
+      <button type="button" class="ghost" data-zatvori aria-label="Zatvori">✕</button>
+    </div>
+    <div class="dlg-body dok-pozadina"><div id="dok-papir" class="papir"></div></div>
+    <div class="dlg-foot">
+      <span class="napomena-mala">Opšti model – provjerite tekst prije potpisivanja.</span>
+      <span class="flex"></span>
+      <button type="button" id="dok-stampa">Štampaj</button>
+      <button type="button" id="dok-word" class="primary">Preuzmi Word</button>
+    </div>
+  </dialog>
+
+  <!-- Potvrda -->
+  <dialog id="dlg-potvrda" class="dlg dlg-mali">
+    <form method="dialog">
+      <div class="dlg-body"><p id="potvrda-tekst"></p></div>
+      <div class="dlg-foot">
+        <span class="flex"></span>
+        <button value="ne" class="ghost">Otkaži</button>
+        <button value="da" id="potvrda-da" class="primary">U redu</button>
+      </div>
+    </form>
+  </dialog>
+
   <datalist id="opstine"></datalist>
   <div id="toast" role="status" aria-live="polite"></div>
 

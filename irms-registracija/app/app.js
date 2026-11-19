@@ -76,6 +76,10 @@
     toast._t = setTimeout(function () { t.classList.remove('vidljiv'); }, 2600);
   }
   function preuzmi(ime, sadrzaj, tip) {
+    if (window.IRMS_DEMO) {
+      toast('U ovom probnom pregledu preuzimanje je isključeno. U aplikaciji na računaru preuzima se „' + ime + '”.');
+      return;
+    }
     var blob = new Blob([sadrzaj], { type: tip });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -95,8 +99,11 @@
       var raw = localStorage.getItem(KLJUC);
       firme = raw ? JSON.parse(raw) : [];
       if (!Array.isArray(firme)) firme = [];
+      if (!raw && window.IRMS_DEMO && window.IRMS_DEMO.primjeri) {
+        firme = JSON.parse(JSON.stringify(window.IRMS_DEMO.primjeri));
+      }
     } catch (e) {
-      firme = [];
+      firme = window.IRMS_DEMO && window.IRMS_DEMO.primjeri ? JSON.parse(JSON.stringify(window.IRMS_DEMO.primjeri)) : [];
       skladisteRadi = false;
     }
   }
@@ -492,28 +499,67 @@
     var d = nadjiDokument(b.dataset.dokPregled || b.dataset.dokWord);
     if (!d) return;
     if (b.dataset.dokWord) { preuzmiWord(d, f); return; }
+    otvoriPregledDokumenta(d, f);
+  });
+
+  // Pregled dokumenta unutar aplikacije; štampa ide preko novog prozora.
+  var dlgDok = $('#dlg-dokument');
+  var pregledano = null;
+  function otvoriPregledDokumenta(d, f) {
+    pregledano = { d: d, f: f };
+    $('#dok-naslov').textContent = d.naziv;
+    $('#dok-papir').innerHTML = window.Dokumenti.uHTML(d.blokovi);
+    $('#dok-papir').scrollTop = 0;
+    dlgDok.showModal();
+  }
+  $('#dok-word').addEventListener('click', function () {
+    if (pregledano) preuzmiWord(pregledano.d, pregledano.f);
+  });
+  $('#dok-stampa').addEventListener('click', function () {
+    if (!pregledano) return;
     var w = window.open('', '_blank');
-    if (!w) { toast('Pregledač je blokirao novi prozor – dozvolite iskačuće prozore.'); return; }
+    if (!w) { toast('Pregledač je blokirao novi prozor. Preuzmite Word i štampajte iz njega.'); return; }
     w.document.open();
-    w.document.write(window.Dokumenti.dokumentHTML(d.naziv + ' – ' + f.naziv, d.blokovi, true));
+    w.document.write(window.Dokumenti.dokumentHTML(pregledano.d.naziv + ' – ' + pregledano.f.naziv, pregledano.d.blokovi, true));
     w.document.close();
   });
+
+  // Potvrda unutar aplikacije (umjesto confirm(), koji neki pregledači blokiraju).
+  var dlgPotvrda = $('#dlg-potvrda');
+  function potvrdi(poruka, dugme, opasno) {
+    $('#potvrda-tekst').textContent = poruka;
+    var da = $('#potvrda-da');
+    da.textContent = dugme;
+    da.className = opasno ? 'danger-solid' : 'primary';
+    dlgPotvrda.showModal();
+    return new Promise(function (res) {
+      dlgPotvrda.addEventListener('close', function handler() {
+        dlgPotvrda.removeEventListener('close', handler);
+        res(dlgPotvrda.returnValue === 'da');
+      });
+    });
+  }
 
   $('#det-uredi').addEventListener('click', function () { dlgDet.close(); otvoriFormu(detId); });
   $('#det-obrisi').addEventListener('click', function () {
     var f = nadji(detId);
-    if (!f || !confirm('Obrisati firmu “' + f.naziv + '”? Ovo se ne može poništiti.')) return;
-    firme = firme.filter(function (x) { return x.id !== detId; });
-    sacuvaj();
-    dlgDet.close();
-    render();
-    toast('Firma obrisana.');
+    if (!f) return;
+    potvrdi('Obrisati firmu „' + f.naziv + '”? Ovo se ne može poništiti.', 'Obriši firmu', true).then(function (ok) {
+      if (!ok) return;
+      firme = firme.filter(function (x) { return x.id !== f.id; });
+      sacuvaj();
+      dlgDet.close();
+      render();
+      toast('Firma obrisana.');
+    });
   });
   $('#det-asistent').addEventListener('click', function () {
     var f = nadji(detId);
     var p = V.provjeriFirmu(f);
-    if (p.errors.length && !confirm('Podaci imaju ' + p.errors.length + ' grešaka. Ipak izvesti?')) return;
-    izvozZaAsistenta([f], 'irms-' + slug(f.naziv) + '.json');
+    var izvezi = function () { izvozZaAsistenta([f], 'irms-' + slug(f.naziv) + '.json'); };
+    if (!p.errors.length) { izvezi(); return; }
+    potvrdi('Podaci imaju ' + p.errors.length + ' grešaka. Asistent će popuniti samo ono što postoji.', 'Ipak izvezi', false)
+      .then(function (ok) { if (ok) izvezi(); });
   });
 
   // ---------- izvoz / uvoz ----------

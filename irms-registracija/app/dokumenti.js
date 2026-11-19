@@ -65,18 +65,18 @@
     if (!o) return PRAZNO;
     if (o.tip === 'pravno') {
       return (o.ime || PRAZNO) + ', PIB/matični broj ' + (o.pib || PRAZNO) +
-        ', sa sjedištem u ' + (o.adresa || PRAZNO) + (ima(o.drzava) && o.drzava !== 'Crna Gora' ? ', ' + o.drzava : '');
+        ', sa sjedištem na adresi: ' + (o.adresa || PRAZNO) + (ima(o.drzava) && o.drzava !== 'Crna Gora' ? ', ' + o.drzava : '');
     }
     var id;
     if (ima(o.jmbg)) id = 'JMBG ' + o.jmbg;
     else if (ima(o.pasos)) id = 'broj pasoša ' + o.pasos + (ima(o.drzavljanstvo) ? ', državljanstvo: ' + o.drzavljanstvo : '');
     else id = 'JMBG ' + PRAZNO;
-    return (o.ime || PRAZNO) + ', ' + id + ', sa prebivalištem u ' + (o.adresa || PRAZNO);
+    return (o.ime || PRAZNO) + ', ' + id + ', sa prebivalištem na adresi: ' + (o.adresa || PRAZNO);
   }
 
   function opisDirektora(z) {
     z = z || {};
-    return (z.ime || PRAZNO) + ', JMBG ' + (z.jmbg || PRAZNO) + ', sa prebivalištem u ' + (z.adresa || PRAZNO);
+    return (z.ime || PRAZNO) + ', JMBG ' + (z.jmbg || PRAZNO) + ', sa prebivalištem na adresi: ' + (z.adresa || PRAZNO);
   }
 
   function djelatnost(f) {
@@ -118,7 +118,7 @@
 
   function mjestoDatum(f) {
     var mj = get(f, 'dokumenta.mjesto') || mjestoSjedista(f);
-    return { t: 'mjestoDatum', x: 'U ' + mj + ', ' + datum(get(f, 'dokumenta.datum')) };
+    return { t: 'mjestoDatum', x: mj + ', ' + datum(get(f, 'dokumenta.datum')) };
   }
 
   function potpisiOsnivaca(cl) {
@@ -246,7 +246,7 @@
       { t: 'podnaslov', x: 'o osnivanju društva sa ograničenom odgovornošću' },
       { t: 'podnaslov', x: '„' + (f.naziv || PRAZNO) + '”' },
       { t: 'razmak' },
-      { t: 'p', x: 'Zaključen dana ' + datum(get(f, 'dokumenta.datum')) + ' u ' + mj + ', na osnovu ' + ZAKON + ', između:' }
+      { t: 'p', x: 'Zaključen dana ' + datum(get(f, 'dokumenta.datum')) + ' u mjestu ' + mj + ', na osnovu ' + ZAKON + ', između:' }
     ];
     cl.forEach(function (x, i) { b.push({ t: 'stavka', x: (i + 1) + ') ' + opisLica(x.o) + ';' }); });
     b.push({ t: 'p', x: '(u daljem tekstu zajedno: Osnivači, odnosno članovi Društva).' });
@@ -373,7 +373,7 @@
       { t: 'naslov', x: 'ODLUKU' },
       { t: 'podnaslov', x: 'o imenovanju izvršnog direktora' },
       { t: 'clan', x: 'I' },
-      { t: 'p', x: 'Za izvršnog direktora društva „' + (f.naziv || PRAZNO) + '”, sa sjedištem u ' + adresaFirme(f) +
+      { t: 'p', x: 'Za izvršnog direktora društva „' + (f.naziv || PRAZNO) + '”, sa sjedištem na adresi: ' + adresaFirme(f) +
         ', imenuje se ' + opisDirektora(z) + '.' },
       { t: 'clan', x: 'II' },
       { t: 'p', x: 'Izvršni direktor se imenuje na period od ' + godina(mandat(f)) + ', počev od dana donošenja ove odluke.' },
@@ -393,7 +393,7 @@
       { t: 'podnaslov', x: 'o prihvatanju imenovanja za izvršnog direktora' },
       { t: 'razmak' },
       { t: 'p', x: 'Ja, ' + opisDirektora(z) + ', izjavljujem da prihvatam imenovanje za izvršnog direktora društva „' +
-        (f.naziv || PRAZNO) + '”, sa sjedištem u ' + adresaFirme(f) + '.' },
+        (f.naziv || PRAZNO) + '”, sa sjedištem na adresi: ' + adresaFirme(f) + '.' },
       { t: 'p', x: 'Izjavljujem da ispunjavam uslove propisane zakonom i Statutom Društva za obavljanje funkcije izvršnog direktora i da ne postoje zakonske smetnje za moje imenovanje.' },
       { t: 'p', x: 'Izjavu dajem pod punom materijalnom i krivičnom odgovornošću, radi registracije Društva i upisa podataka o licu ovlašćenom za zastupanje.' },
       { t: 'razmak' }, mjestoDatum(f),
@@ -408,9 +408,9 @@
     return [
       { t: 'naslov', x: 'OVLAŠĆENJE' },
       { t: 'razmak' },
-      { t: 'p', x: (f.naziv || PRAZNO) + ', sa sjedištem u ' + adresaFirme(f) + pib +
+      { t: 'p', x: (f.naziv || PRAZNO) + ', sa sjedištem na adresi: ' + adresaFirme(f) + pib +
         ', koje zastupa izvršni direktor ' + (z.ime || PRAZNO) + ' (u daljem tekstu: Vlastodavac), ovim ovlašćuje' },
-      { t: 'p', x: (p.ime || PRAZNO) + ', JMBG ' + (p.jmbg || PRAZNO) + ', sa prebivalištem u ' + (p.adresa || PRAZNO) +
+      { t: 'p', x: (p.ime || PRAZNO) + ', JMBG ' + (p.jmbg || PRAZNO) + ', sa prebivalištem na adresi: ' + (p.adresa || PRAZNO) +
         ' (u daljem tekstu: Punomoćnik),' },
       { t: 'p', x: 'da u ime i za račun Vlastodavca preduzima sve radnje pred Poreskom upravom Crne Gore, uključujući registraciju i upis u registar poreskih obveznika, registraciju za PDV, podnošenje zahtjeva, prijava i drugih podnesaka putem portala IRMS, prijem akata i davanje izjava, kao i pred Centralnim registrom privrednih subjekata i poslovnim bankama radi otvaranja računa, ukoliko je to potrebno za registraciju.' },
       { t: 'p', x: 'Ovlašćenje važi do opoziva.' },
