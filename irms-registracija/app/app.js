@@ -17,8 +17,9 @@
   var CHECKLISTA = [
     { id: 'sertifikat', tekst: 'Kvalifikovani elektronski sertifikat ovlašćenog lica (za prijavu i potpis na IRMS-u)' },
     { id: 'crps', tekst: 'Rješenje o upisu u CRPS' },
-    { id: 'osnivackiAkt', tekst: 'Osnivački akt / ugovor o osnivanju i statut' },
-    { id: 'odlukaDirektor', tekst: 'Odluka o imenovanju izvršnog direktora' },
+    { id: 'osnivackiAkt', tekst: 'Osnivački akt i statut, sa ovjerenim potpisima ili kvalifikovanim elektronskim potpisom' },
+    { id: 'uplata', tekst: 'Dokaz o uplati novčanog uloga u cjelosti (prije registracije u CRPS)' },
+    { id: 'odlukaDirektor', tekst: 'Imenovanje direktora (u statutu ili posebnom odlukom) i izjava direktora' },
     { id: 'prostor', tekst: 'Dokaz o pravu korišćenja poslovnog prostora (ugovor o zakupu / list nepokretnosti)' },
     { id: 'banka', tekst: 'Ugovor o otvaranju računa u banci' },
     { id: 'ovlascenje', tekst: 'Ovlašćenje za računovođu / zastupnika (ako zahtjev ne podnosi direktor)' },
@@ -208,10 +209,15 @@
     $('.ukloni', node).addEventListener('click', function () { node.remove(); });
     var tip = $('[data-k="tip"]', node);
     if (tip) {
+      var drz = $('[data-k="drzavljanstvo"]', node);
       var osvjezi = function () {
-        $$('[data-za]', node).forEach(function (l) { l.hidden = l.dataset.za !== tip.value; });
+        var domaci = /^\s*(crna gora|cg|mne|montenegro)\s*$/i.test(drz.value);
+        $$('[data-za]', node).forEach(function (l) {
+          l.hidden = l.dataset.za !== tip.value || (l.hasAttribute('data-stranac') && domaci);
+        });
       };
       tip.addEventListener('change', osvjezi);
+      drz.addEventListener('input', osvjezi);
       osvjezi();
     }
     kont.appendChild(node);
@@ -221,7 +227,7 @@
     return $$('.red', kont).map(function (red) {
       var o = {};
       $$('[data-k]', red).forEach(function (inp) {
-        var lbl = inp.closest('[data-za]');
+        var lbl = inp.closest('label');
         if (lbl && lbl.hidden) return;
         o[inp.dataset.k] = inp.value.trim();
       });
@@ -382,7 +388,7 @@
     html += '<div class="blok"><h3>Provjera podataka</h3><div id="det-provjera" class="provjera"></div></div>';
 
     html += '<div class="blok"><h3>Podaci za unos na IRMS</h3>' +
-      polje('Puni naziv', f.naziv) + polje('Skraćeni naziv', f.skraceniNaziv) +
+      polje('Poslovno ime', f.naziv) + polje('Skraćeno poslovno ime', f.skraceniNaziv) +
       polje('Pravni oblik', f.pravniOblik) + polje('PIB', f.pib) +
       polje('Registarski broj (CRPS)', f.registarskiBroj) + polje('Datum osnivanja', f.datumOsnivanja) +
       polje('Šifra djelatnosti', f.sifraDjelatnosti) + polje('Opis djelatnosti', f.opisDjelatnosti) +
@@ -391,11 +397,11 @@
       polje('PDV', f.pdvObveznik === 'da' ? 'Da' + (f.pdvDatum ? ', od ' + f.pdvDatum : '') : 'Ne') +
       '</div>';
 
-    html += '<div class="blok"><h3>Sjedište i zastupnik</h3>' +
+    html += '<div class="blok"><h3>Sjedište i direktor</h3>' +
       polje('Opština', sj.opstina) + polje('Mjesto', sj.mjesto) + polje('Ulica', sj.ulica) +
       polje('Broj', sj.broj) + polje('Poštanski broj', sj.postanskiBroj) +
-      polje('Zastupnik', z.ime) + polje('JMBG zastupnika', z.jmbg) + polje('Funkcija', z.funkcija) +
-      polje('E-mail zastupnika', z.email) + '</div>';
+      polje('Direktor', z.ime) + polje('JMBG direktora', z.jmbg) + polje('Funkcija', z.funkcija) +
+      polje('E-mail direktora', z.email) + '</div>';
 
     html += '<div class="blok"><h3>Osnivači</h3>' + ((f.osnivaci || []).map(function (o, i) {
       return '<div style="margin-bottom:6px"><strong>' + (i + 1) + '. ' + esc(o.ime) + '</strong>' +
@@ -494,7 +500,7 @@
       }).join('') +
       '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
       '<button type="button" id="dok-svi" class="small">Preuzmi sve (Word)</button>' +
-      '<span class="napomena-mala">Opšti modeli po Zakonu o privrednim društvima. Prije potpisivanja neka ih pregleda pravnik ili računovođa.</span></div></div>';
+      '<span class="napomena-mala">Opšti modeli usklađeni sa: ' + esc(window.Dokumenti.ZAKON) + '. Prije potpisivanja neka ih pregleda pravnik ili računovođa.</span></div></div>';
   }
 
   function nadjiDokument(id) {

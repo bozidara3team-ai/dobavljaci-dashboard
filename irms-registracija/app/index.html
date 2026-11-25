@@ -53,15 +53,15 @@
         <fieldset>
           <legend>Osnovni podaci</legend>
           <div class="grid">
-            <label class="span2">Puni naziv firme *<input name="naziv" required></label>
-            <label>Skraćeni naziv<input name="skraceniNaziv"></label>
+            <label class="span2">Poslovno ime * <span class="pomoc">naziv + oznaka DOO + sjedište</span><input name="naziv" required placeholder="npr. Jadran Soft DOO Bar"></label>
+            <label>Skraćeno poslovno ime<input name="skraceniNaziv" placeholder="npr. Jadran Soft DOO"></label>
             <label>Pravni oblik *<select name="pravniOblik" id="pravni-oblik"></select></label>
             <label>PIB<input name="pib" inputmode="numeric" maxlength="8" placeholder="8 cifara"></label>
             <label>Registarski broj (CRPS)<input name="registarskiBroj" placeholder="npr. 5-0123456/001"></label>
             <label>Datum osnivanja / upisa u CRPS<input name="datumOsnivanja" type="date"></label>
             <label>Šifra pretežne djelatnosti *<input name="sifraDjelatnosti" placeholder="npr. 62.01"></label>
             <label class="span2">Opis djelatnosti<input name="opisDjelatnosti" placeholder="npr. Računarsko programiranje"></label>
-            <label>Osnovni kapital (€)<input name="kapital" inputmode="decimal"></label>
+            <label>Osnovni kapital (€) <span class="pomoc">DOO: najmanje 1 €</span><input name="kapital" inputmode="decimal"></label>
             <label>Očekivani broj zaposlenih<input name="brojZaposlenih" type="number" min="0"></label>
           </div>
         </fieldset>
@@ -92,11 +92,11 @@
         </fieldset>
 
         <fieldset>
-          <legend>Ovlašćeno lice za zastupanje (izvršni direktor)</legend>
+          <legend>Direktor (lice ovlašćeno za zastupanje)</legend>
           <div class="grid">
             <label>Ime i prezime *<input name="zastupnik.ime"></label>
             <label>JMBG<input name="zastupnik.jmbg" inputmode="numeric" maxlength="13"></label>
-            <label>Funkcija<input name="zastupnik.funkcija" placeholder="Izvršni direktor"></label>
+            <label>Funkcija<input name="zastupnik.funkcija" placeholder="Direktor"></label>
             <label>E-mail<input name="zastupnik.email" type="email"></label>
             <label class="span2">Adresa prebivališta<input name="zastupnik.adresa" placeholder="za osnivačka akta"></label>
           </div>
@@ -126,7 +126,26 @@
           <div class="grid">
             <label>Mjesto donošenja akata<input name="dokumenta.mjesto" placeholder="podrazumijevano: mjesto sjedišta"></label>
             <label>Datum donošenja akata<input name="dokumenta.datum" type="date"></label>
-            <label>Mandat direktora (godina)<input name="dokumenta.mandat" type="number" min="1" max="10" placeholder="4"></label>
+            <label>Mandat direktora (godina) <span class="pomoc">prazno = neograničen</span><input name="dokumenta.mandat" type="number" min="1" placeholder="neograničen"></label>
+            <label>Prvi direktor se imenuje
+              <select name="dokumenta.imenovanje">
+                <option value="statut">Statutom</option>
+                <option value="odluka">Posebnom odlukom</option>
+              </select>
+            </label>
+            <label>Oblik osnivačkog akta
+              <select name="dokumenta.oblik">
+                <option value="pisani">Pisani (ovjereni potpisi)</option>
+                <option value="elektronski">Elektronski (el. potpis)</option>
+              </select>
+            </label>
+            <label>Procijenjeni troškovi osnivanja (€)<input name="dokumenta.troskovi" inputmode="decimal" placeholder="nije obavezno"></label>
+            <label>Društvo nadoknađuje troškove osnivanja
+              <select name="dokumenta.nadoknada">
+                <option value="ne">Ne</option>
+                <option value="da">Da, do procjene</option>
+              </select>
+            </label>
           </div>
           <p class="napomena-mala">Punomoćnik – lice koje podnosi zahtjev na IRMS-u umjesto direktora (npr. računovođa). Nije obavezno.</p>
           <div class="grid">
@@ -209,12 +228,16 @@
         <label class="span2">Ime i prezime / naziv<input data-k="ime"></label>
         <label data-za="fizicko">JMBG<input data-k="jmbg" inputmode="numeric" maxlength="13"></label>
         <label data-za="fizicko">Državljanstvo<input data-k="drzavljanstvo" value="Crna Gora"></label>
-        <label data-za="fizicko">Broj pasoša (stranci)<input data-k="pasos"></label>
-        <label data-za="pravno">PIB / matični broj<input data-k="pib"></label>
+        <label data-za="fizicko" data-stranac>Broj pasoša<input data-k="pasos"></label>
+        <label data-za="fizicko" data-stranac>Pasoš izdat<input data-k="pasosIzdat" type="date"></label>
+        <label data-za="fizicko" data-stranac>Pasoš važi do<input data-k="pasosVazi" type="date"></label>
+        <label data-za="fizicko" data-stranac>Država izdavanja pasoša<input data-k="drzavaPasosa"></label>
+        <label data-za="fizicko" data-stranac>Datum rođenja<input data-k="datumRodjenja" type="date"></label>
+        <label data-za="pravno">Matični / registarski broj<input data-k="pib"></label>
         <label data-za="pravno">Država<input data-k="drzava" value="Crna Gora"></label>
         <label data-za="pravno">Zastupnik pravnog lica<input data-k="zastupnik"></label>
         <label>Udio (%)<input data-k="udio" inputmode="decimal"></label>
-        <label class="span2">Adresa (prebivalište / sjedište)<input data-k="adresa"></label>
+        <label class="span2">Adresa prebivališta / boravka / sjedišta<input data-k="adresa"></label>
       </div>
       <button type="button" class="ghost ukloni" aria-label="Ukloni osnivača">Ukloni</button>
     </div>

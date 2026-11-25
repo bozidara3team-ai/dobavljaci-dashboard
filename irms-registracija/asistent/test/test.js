@@ -13,7 +13,7 @@ async function t(ime, fn) {
 
 const FIRMA = {
   naziv: 'Test Solutions DOO Podgorica',
-  skraceniNaziv: 'Test Solutions',
+  skraceniNaziv: 'Test Solutions DOO',
   pravniOblik: 'Društvo sa ograničenom odgovornošću (DOO)',
   pib: '03123456',
   registarskiBroj: '5-0123456/001',
@@ -22,11 +22,12 @@ const FIRMA = {
   sjediste: { opstina: 'Podgorica', mjesto: 'Podgorica', ulica: 'Bulevar Svetog Petra Cetinjskog', broj: '1', postanskiBroj: '81000' },
   email: 'info@primjer.me',
   telefon: '+382 20 000 000',
+  kapital: '1000',
   osnivaci: [
-    { tip: 'fizicko', ime: 'Marko Marković', jmbg: '1503985210000', udio: '60' },
-    { tip: 'fizicko', ime: 'Ana Anić', jmbg: '0101980215009', udio: '40' }
+    { tip: 'fizicko', ime: 'Marko Marković', jmbg: '1503985210000', udio: '60', adresa: 'Podgorica, Njegoševa 1' },
+    { tip: 'fizicko', ime: 'Ana Anić', jmbg: '0101980215009', udio: '40', adresa: 'Podgorica, Slobode 2' }
   ],
-  zastupnik: { ime: 'Marko Marković', jmbg: '1503985210000' },
+  zastupnik: { ime: 'Marko Marković', jmbg: '1503985210000', adresa: 'Podgorica, Njegoševa 1' },
   racuni: [{ banka: 'NLB Banka', broj: '510-0000123456789-20' }],
   pdvObveznik: 'da',
   pdvDatum: '2026-11-01'
@@ -55,35 +56,102 @@ const FIRMA = {
     f.osnivaci[1].udio = '30';
     assert.ok(V.provjeriFirmu(f).errors.some((e) => /100%/.test(e.poruka)));
   });
-  await t('stranac bez JMBG traži pasoš', () => {
+  await t('stranac: podaci o pasošu po članu 362', () => {
     const f = JSON.parse(JSON.stringify(FIRMA));
-    f.osnivaci[1] = { tip: 'fizicko', ime: 'John Smith', drzavljanstvo: 'UK', udio: '40' };
-    assert.ok(V.provjeriFirmu(f).errors.some((e) => e.polje === 'osnivaci.1.pasos'));
-    f.osnivaci[1].pasos = 'X1234567';
+    f.osnivaci[1] = { tip: 'fizicko', ime: 'John Smith', drzavljanstvo: 'Ujedinjeno Kraljevstvo', udio: '40' };
+    const polja = V.provjeriFirmu(f).errors.map((e) => e.polje);
+    ['pasos', 'pasosIzdat', 'pasosVazi', 'datumRodjenja', 'adresa'].forEach((k) => assert.ok(polja.includes('osnivaci.1.' + k), k));
+    Object.assign(f.osnivaci[1], { pasos: 'X1234567', pasosIzdat: '2020-01-10', pasosVazi: '2030-01-09', datumRodjenja: '1985-05-05', adresa: 'Budva, Mediteranska 3' });
     assert.deepStrictEqual(V.provjeriFirmu(f).errors, []);
+    f.osnivaci[1].pasosVazi = '2024-01-01';
+    assert.ok(V.provjeriFirmu(f).errors.some((e) => /istekao/.test(e.poruka)));
+  });
+  await t('poslovno ime: oznaka DOO i sjedište (član 23)', () => {
+    const greske = (naziv, skr) => V.provjeriFirmu(Object.assign({}, FIRMA, { naziv, skraceniNaziv: skr || '' }))
+      .errors.filter((e) => e.polje === 'naziv' || e.polje === 'skraceniNaziv').length;
+    assert.strictEqual(greske('Test Solutions DOO Podgorica'), 0);
+    assert.strictEqual(greske('Test Solutions d.o.o. Podgorica'), 0);
+    assert.strictEqual(greske('Društvo sa ograničenom odgovornošću Test Solutions, Podgorica'), 0);
+    assert.strictEqual(greske('Test Solutions Podgorica'), 1);
+    assert.strictEqual(greske('Test Solutions DOO'), 1);
+    assert.strictEqual(greske('Test Solutions DOO Podgorica', 'Test Solutions'), 1);
+  });
+  await t('poslovno ime preduzetnika: ime i prezime, sjedište, PR (član 85)', () => {
+    const f = { pravniOblik: 'Preduzetnik', sjediste: { opstina: 'Kolašin', mjesto: 'Kolašin' }, osnivaci: [{ tip: 'fizicko', ime: 'Milica Marić' }] };
+    const g = (naziv) => V.provjeriFirmu(Object.assign({}, f, { naziv })).errors.filter((e) => e.polje === 'naziv').length;
+    assert.strictEqual(g('Milica Marić PR Kafe Tara Kolašin'), 0);
+    assert.strictEqual(g('Kafe Tara PR Kolašin'), 1);
+  });
+  await t('kapital DOO najmanje 1 € (član 361)', () => {
+    const g = (kapital) => V.provjeriFirmu(Object.assign({}, FIRMA, { kapital })).errors.some((e) => e.polje === 'kapital');
+    assert.ok(g(''));
+    assert.ok(g('0,50'));
+    assert.ok(!g('1'));
+  });
+  await t('DOO najviše 30 članova (član 358)', () => {
+    const osnivaci = Array.from({ length: 31 }, () => ({ tip: 'fizicko', ime: 'A B', jmbg: '1503985210000', adresa: 'X' }));
+    assert.ok(V.provjeriFirmu(Object.assign({}, FIRMA, { osnivaci })).errors.some((e) => /30 članova/.test(e.poruka)));
+  });
+  await t('nadoknada troškova osnivanja traži iznos (čl. 362 i 365)', () => {
+    const f = Object.assign({}, FIRMA, { dokumenta: { nadoknada: 'da' } });
+    assert.ok(V.provjeriFirmu(f).errors.some((e) => e.polje === 'dokumenta.troskovi'));
+    f.dokumenta.troskovi = '300';
+    assert.ok(!V.provjeriFirmu(f).errors.some((e) => e.polje === 'dokumenta.troskovi'));
   });
 
   console.log('Osnivačka dokumenta');
   const D = require('../../app/dokumenti.js');
+  const tekst = (d) => d.blokovi.map((b) => b.x || (b.lista || []).map((p) => p.ime).join(' ')).join('\n');
   const FD = Object.assign(JSON.parse(JSON.stringify(FIRMA)), {
-    kapital: '1000',
     opisDjelatnosti: 'Računarsko programiranje',
     dokumenta: { mjesto: 'Podgorica', datum: '2026-11-15', mandat: '4' },
     punomocnik: { ime: 'Jelena Jelić', jmbg: '0101980215009', adresa: 'Podgorica' }
   });
-  FD.zastupnik.adresa = 'Podgorica, Njegoševa 1';
-  FD.osnivaci.forEach((o) => { o.adresa = 'Podgorica'; });
-  const tekst = (d) => d.blokovi.map((b) => b.x || (b.lista || []).map((p) => p.ime).join(' ')).join('\n');
+  const sviTekstovi = (f) => D.zaFirmu(f).filter((d) => d.dostupan).map(tekst).join('\n');
   await t('dva osnivača → ugovor o osnivanju sa iznosima uloga', () => {
     const docs = D.zaFirmu(FD);
     const u = docs.find((d) => d.id === 'ugovor-o-osnivanju');
     assert.ok(u && u.dostupan);
     assert.deepStrictEqual(u.nedostaje, []);
     const x = tekst(u);
-    assert.match(x, /Marko Marković – ulog u iznosu od 600,00 €, što čini udio od 60%/);
-    assert.match(x, /Ana Anić – ulog u iznosu od 400,00 €, što čini udio od 40%/);
-    assert.match(x, /pravo preče kupovine/);
+    assert.match(x, /Marko Marković – ukupan iznos novčanog uloga 600,00 €, udio u osnovnom kapitalu Društva 60%/);
+    assert.match(x, /Ana Anić – ukupan iznos novčanog uloga 400,00 €, udio u osnovnom kapitalu Društva 40%/);
+    assert.match(x, /Marko Marković, JMBG 1503985210000, adresa prebivališta: Podgorica, Njegoševa 1/);
+    assert.match(x, /uplate u cjelosti|uplati u cjelosti/);
+    assert.match(x, /potpisi svih osnivača ovjeravaju se/);
+    assert.match(x, /ne može se mijenjati nakon registracije/);
+    assert.match(x, /Troškove osnivanja Društva snosi osnivači srazmjerno|snose osnivači|osnivači srazmjerno svojim udjelima/);
+    assert.match(x, /90\/25, 121\/25 i 44\/26/);
     assert.match(x, /15\.11\.2026\. godine/);
+  });
+  await t('statut: obavezni elementi iz člana 363', () => {
+    const s = tekst(D.zaFirmu(FD).find((d) => d.id === 'statut'));
+    assert.match(s, /Poslovno ime Društva je: Test Solutions DOO Podgorica/);
+    assert.match(s, /Sjedište Društva je: Opština Podgorica/);
+    assert.match(s, /Marko Marković – 60%/);
+    assert.match(s, /najkasnije osam dana prije dana održavanja sjednice/);
+    assert.match(s, /više od polovine ukupnog broja glasova/);
+    assert.match(s, /dvotrećinsku većinu glasačkih prava/);
+    assert.match(s, /u roku od 30 dana od dana prijema ponude/);
+    assert.match(s, /Za prvog direktora Društva imenuje se Marko Marković/);
+  });
+  await t('nigdje „izvršni direktor” ni stari zakon', () => {
+    const x = sviTekstovi(FD);
+    assert.ok(!/izvršn/i.test(x));
+    assert.ok(!/65\/20|146\/21/.test(x));
+  });
+  await t('stranac u osnivačkom aktu: podaci o pasošu', () => {
+    const o = { tip: 'fizicko', ime: 'John Smith', drzavljanstvo: 'Ujedinjeno Kraljevstvo', pasos: 'X1234567', pasosIzdat: '2020-01-10', pasosVazi: '2030-01-09', datumRodjenja: '1985-05-05', adresa: 'Budva' };
+    assert.strictEqual(D._.opisLica(o), 'John Smith, broj pasoša X1234567, datum izdavanja pasoša 10.01.2020., pasoš važi do 09.01.2030., država izdavanja pasoša: Ujedinjeno Kraljevstvo, datum rođenja 05.05.1985., adresa boravka: Budva');
+  });
+  await t('troškovi osnivanja i elektronski oblik', () => {
+    const f = JSON.parse(JSON.stringify(FD));
+    f.dokumenta.nadoknada = 'da'; f.dokumenta.troskovi = '300'; f.dokumenta.oblik = 'elektronski';
+    const x = tekst(D.zaFirmu(f).find((d) => d.id === 'ugovor-o-osnivanju'));
+    assert.match(x, /Procijenjeni troškovi osnivanja Društva iznose 300,00 €/);
+    assert.match(x, /ne može se platiti iz osnovnog kapitala/);
+    assert.match(x, /kvalifikovanim elektronskim potpisom/);
+    assert.ok(!/istovjetnih primjeraka/.test(x));
   });
   await t('jedan osnivač → odluka o osnivanju, 100%', () => {
     const f = JSON.parse(JSON.stringify(FD));
@@ -91,14 +159,22 @@ const FIRMA = {
     const docs = D.zaFirmu(f);
     assert.ok(!docs.some((d) => d.id === 'ugovor-o-osnivanju'));
     const o = docs.find((d) => d.id === 'odluka-o-osnivanju');
-    assert.match(tekst(o), /udjela od 100%/);
+    assert.match(tekst(o), /udio u osnovnom kapitalu Društva 100%/);
+    assert.match(tekst(o), /jednočlano društvo/);
     assert.match(tekst(docs.find((d) => d.id === 'statut')), /1\.000,00 €/);
   });
   await t('mandat i oblik riječi "godina"', () => {
     assert.strictEqual(D._.godina(1), '1 godinu');
     assert.strictEqual(D._.godina(4), '4 godine');
     assert.strictEqual(D._.godina(5), '5 godina');
-    assert.match(tekst(D.zaFirmu(FD).find((d) => d.id === 'odluka-o-imenovanju-direktora')), /period od 4 godine/);
+    // Podrazumijevano direktor se imenuje statutom, pa posebna odluka nije potrebna.
+    assert.ok(!D.zaFirmu(FD).find((d) => d.id === 'odluka-o-imenovanju-direktora').dostupan);
+    const f = JSON.parse(JSON.stringify(FD));
+    f.dokumenta.imenovanje = 'odluka';
+    assert.match(tekst(D.zaFirmu(f).find((d) => d.id === 'odluka-o-imenovanju-direktora')), /period od 4 godine/);
+    assert.ok(!/Za prvog direktora/.test(tekst(D.zaFirmu(f).find((d) => d.id === 'statut'))));
+    f.dokumenta.mandat = '';
+    assert.match(tekst(D.zaFirmu(f).find((d) => d.id === 'statut')), /Trajanje mandata direktora nije ograničeno/);
   });
   await t('nedostajući podaci se prijavljuju i ostaje prazna linija', () => {
     const docs = D.zaFirmu({ naziv: 'X DOO', pravniOblik: 'Društvo sa ograničenom odgovornošću (DOO)' });
@@ -115,7 +191,8 @@ const FIRMA = {
   await t('docx je ispravan ZIP sa document.xml', () => {
     const fs = require('fs'), os = require('os'), cp = require('child_process');
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'docx-'));
-    D.zaFirmu(FD).filter((d) => d.dostupan).forEach((d) => {
+    const dostupni = D.zaFirmu(FD).filter((d) => d.dostupan);
+    dostupni.forEach((d) => {
       fs.writeFileSync(path.join(dir, d.id + '.docx'), Buffer.from(D.uDocx(d.blokovi)));
     });
     const out = cp.execFileSync('python3', ['-c', `
@@ -125,7 +202,7 @@ for f in sorted(glob.glob(sys.argv[1] + '/*.docx')):
     d = docx.Document(f)
     print(f.split('/')[-1], len(d.paragraphs), len(d.tables))
 `, dir]).toString();
-    assert.strictEqual(out.trim().split('\n').length, 5, out);
+    assert.strictEqual(out.trim().split('\n').length, dostupni.length, out);
     process.env.DOCX_DIR = dir;
   });
 
@@ -152,7 +229,7 @@ for f in sorted(glob.glob(sys.argv[1] + '/*.docx')):
   const v = (s) => page.inputValue(s);
   await t('osnovna polja popunjena', async () => {
     assert.strictEqual(await v('#naziv'), FIRMA.naziv);
-    assert.strictEqual(await v('#skr'), 'Test Solutions');
+    assert.strictEqual(await v('#skr'), 'Test Solutions DOO');
     assert.strictEqual(await v('#dat'), '01.10.2026');
     assert.strictEqual(await page.$eval('#pf', (s) => s.selectedOptions[0].text), 'Društvo sa ograničenom odgovornošću');
     assert.strictEqual(await page.$eval('#op', (s) => s.value), 'Podgorica');

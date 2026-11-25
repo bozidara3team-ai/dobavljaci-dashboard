@@ -14,7 +14,7 @@
     'Preduzetnik',
     'Ortačko društvo (OD)',
     'Komanditno društvo (KD)',
-    'Dio stranog društva',
+    'Dio stranog privrednog društva',
     'Predstavništvo stranog društva',
     'Nevladina organizacija',
     'Ostalo'
@@ -97,6 +97,37 @@
   function jePreduzetnik(f) {
     return f.pravniOblik === 'Preduzetnik';
   }
+  function jeDOO(f) {
+    return /\(DOO\)|ograničenom odgovornošću/i.test(f.pravniOblik || '');
+  }
+
+  /* Poređenje teksta bez razlike u velikim slovima i kvačicama. */
+  function norm(s) {
+    return String(s || '').toLowerCase()
+      .replace(/[čć]/g, 'c').replace(/š/g, 's').replace(/ž/g, 'z').replace(/đ/g, 'dj')
+      .replace(/\s+/g, ' ').trim();
+  }
+  function sadrzi(tekst, dio) {
+    return !!dio && norm(tekst).indexOf(norm(dio)) !== -1;
+  }
+  function imaRijec(tekst, rijec) {
+    return new RegExp('(^|[^a-z0-9])' + rijec + '($|[^a-z0-9])').test(norm(tekst));
+  }
+
+  /* Oznaka pravnog oblika u poslovnom imenu (član 23 stav 3 i član 85 stav 3 Zakona). */
+  var OZNAKE = [
+    { test: /\(DOO\)/, puna: 'društvo sa ograničenom odgovornošću', skr: 'doo', ispis: '„DOO”' },
+    { test: /\(AD\)/, puna: 'akcionarsko društvo', skr: 'ad', ispis: '„AD”' },
+    { test: /\(OD\)/, puna: 'ortačko društvo', skr: 'od', ispis: '„OD”' },
+    { test: /\(KD\)/, puna: 'komanditno društvo', skr: 'kd', ispis: '„KD”' },
+    { test: /^Preduzetnik$/, puna: 'preduzetnik', skr: 'pr', ispis: '„PR”' }
+  ];
+  function oznakaZa(f) {
+    return OZNAKE.filter(function (o) { return o.test.test(f.pravniOblik || ''); })[0];
+  }
+  function imaOznaku(tekst, o) {
+    return sadrzi(tekst, o.puna) || imaRijec(tekst, o.skr) || imaRijec(tekst, o.skr.split('').join('\\.?') + '\\.?');
+  }
 
   /*
    * Glavna provjera. Vraća { errors: [{polje, poruka}], warnings: [...] }.
@@ -108,7 +139,27 @@
     function up(polje, poruka) { warnings.push({ polje: polje, poruka: poruka }); }
 
     f = f || {};
-    if (prazno(f.naziv)) gr('naziv', 'Naziv firme je obavezan');
+    var a = f.sjediste || {};
+    var oz = oznakaZa(f);
+    if (prazno(f.naziv)) gr('naziv', 'Poslovno ime je obavezno');
+    else if (oz) {
+      // Poslovno ime sadrži naziv, oznaku pravnog oblika i sjedište (član 23, član 85).
+      if (!imaOznaku(f.naziv, oz)) {
+        gr('naziv', 'Poslovno ime mora sadržati oznaku pravnog oblika ' + oz.ispis + ' ili „' + oz.puna + '” (član ' + (jePreduzetnik(f) ? '85' : '23') + ' Zakona)');
+      }
+      if ((a.opstina || a.mjesto) && !sadrzi(f.naziv, a.opstina) && !sadrzi(f.naziv, a.mjesto)) {
+        gr('naziv', 'Poslovno ime mora sadržati sjedište (npr. „' + (a.opstina || a.mjesto) + '”) (član ' + (jePreduzetnik(f) ? '85' : '23') + ' Zakona)');
+      }
+      if (jePreduzetnik(f)) {
+        var pr = (f.osnivaci || [])[0];
+        if (pr && pr.ime && !sadrzi(f.naziv, pr.ime)) {
+          gr('naziv', 'Poslovno ime preduzetnika mora sadržati njegovo ime i prezime (član 85 Zakona)');
+        }
+      }
+      if (!prazno(f.skraceniNaziv) && !imaOznaku(f.skraceniNaziv, oz)) {
+        gr('skraceniNaziv', 'Skraćeno poslovno ime mora sadržati oznaku pravnog oblika ' + oz.ispis + ' (član ' + (jePreduzetnik(f) ? '85' : '24') + ' Zakona)');
+      }
+    }
     if (prazno(f.pravniOblik)) gr('pravniOblik', 'Pravni oblik je obavezan');
 
     if (!prazno(f.pib)) {
@@ -128,7 +179,6 @@
       gr('datumOsnivanja', 'Datum osnivanja ne može biti u budućnosti');
     }
 
-    var a = f.sjediste || {};
     if (prazno(a.opstina)) gr('sjediste.opstina', 'Opština sjedišta je obavezna');
     if (prazno(a.mjesto)) gr('sjediste.mjesto', 'Mjesto sjedišta je obavezno');
     if (prazno(a.ulica)) gr('sjediste.ulica', 'Ulica sjedišta je obavezna');
@@ -141,13 +191,20 @@
       if (sd) gr('sifraDjelatnosti', sd);
     }
 
-    if (prazno(f.email)) gr('email', 'E-mail za komunikaciju sa Poreskom upravom je obavezan');
+    if (prazno(f.email)) gr('email', 'Adresa za prijem elektronske pošte je obavezna (član 19 Zakona)');
     else { var em = provjeriEmail(f.email); if (em) gr('email', em); }
     if (prazno(f.telefon)) up('telefon', 'Telefon nije unesen');
 
     var osnivaci = f.osnivaci || [];
+    var doo = jeDOO(f);
     if (osnivaci.length === 0) {
       gr('osnivaci', jePreduzetnik(f) ? 'Unesite podatke o preduzetniku' : 'Unesite bar jednog osnivača');
+    }
+    if (doo && osnivaci.length > 30) gr('osnivaci', 'DOO može imati najviše 30 članova (član 358 Zakona)');
+    if (doo) {
+      var kap = Number(String(f.kapital || '').replace(/\s/g, '').replace(',', '.'));
+      if (prazno(f.kapital)) gr('kapital', 'Osnovni kapital je obavezan (član 362 Zakona)');
+      else if (isNaN(kap) || kap < 1) gr('kapital', 'Osnovni kapital DOO iznosi najmanje 1 € (član 361 Zakona)');
     }
     var ukupnoUdio = 0;
     var imaUdio = false;
@@ -155,22 +212,35 @@
       var k = 'osnivaci.' + i;
       var oznaka = 'Osnivač ' + (i + 1);
       if (prazno(o.ime)) gr(k + '.ime', oznaka + ': ime / naziv je obavezno');
+      // Podaci o osnivaču DOO po članu 362 tačka 1 Zakona.
+      var obavezno = doo ? gr : up;
       if (o.tip === 'fizicko') {
         if (prazno(o.jmbg)) {
           if (o.drzavljanstvo && o.drzavljanstvo !== 'Crna Gora') {
             if (prazno(o.pasos)) gr(k + '.pasos', oznaka + ': za stranca unesite broj pasoša');
+            if (prazno(o.pasosIzdat)) obavezno(k + '.pasosIzdat', oznaka + ': unesite datum izdavanja pasoša');
+            if (prazno(o.pasosVazi)) obavezno(k + '.pasosVazi', oznaka + ': unesite datum važenja pasoša');
+            else if (new Date(o.pasosVazi) < new Date()) gr(k + '.pasosVazi', oznaka + ': pasoš je istekao');
+            if (prazno(o.datumRodjenja)) obavezno(k + '.datumRodjenja', oznaka + ': unesite datum rođenja');
+            if (prazno(o.adresa)) obavezno(k + '.adresa', oznaka + ': unesite adresu boravka');
           } else {
             gr(k + '.jmbg', oznaka + ': JMBG je obavezan');
           }
         } else {
           var j = provjeriJMBG(o.jmbg);
           if (j) gr(k + '.jmbg', oznaka + ': ' + j);
+          if (prazno(o.adresa)) obavezno(k + '.adresa', oznaka + ': unesite adresu prebivališta');
         }
       } else if (o.tip === 'pravno') {
-        if (prazno(o.pib)) up(k + '.pib', oznaka + ': PIB / matični broj pravnog lica nije unesen');
-        else if (!/^\d{8}$/.test(String(o.pib).trim()) && (!o.drzava || o.drzava === 'Crna Gora')) {
-          gr(k + '.pib', oznaka + ': PIB domaćeg pravnog lica mora imati 8 cifara');
+        var strano = o.drzava && o.drzava !== 'Crna Gora';
+        if (prazno(o.pib)) obavezno(k + '.pib', oznaka + ': unesite ' + (strano ? 'registarski broj u matičnom registru' : 'matični broj pravnog lica'));
+        else if (!strano && !/^\d{8}$/.test(String(o.pib).trim())) {
+          gr(k + '.pib', oznaka + ': matični broj domaćeg pravnog lica ima 8 cifara');
         }
+        if (prazno(o.adresa)) obavezno(k + '.adresa', oznaka + ': unesite adresu sjedišta');
+      }
+      if (doo && prazno(o.udio) && osnivaci.length > 1) {
+        gr(k + '.udio', oznaka + ': udio u osnovnom kapitalu u procentima je obavezan (član 362 Zakona)');
       }
       if (!prazno(o.udio)) {
         var u = Number(String(o.udio).replace(',', '.'));
@@ -183,12 +253,22 @@
     }
 
     var z = f.zastupnik || {};
-    if (prazno(z.ime)) gr('zastupnik.ime', 'Ovlašćeno lice za zastupanje je obavezno');
+    if (prazno(z.ime)) gr('zastupnik.ime', jePreduzetnik(f) ? 'Ime preduzetnika (lica koje zastupa) je obavezno' : 'Direktor (lice ovlašćeno za zastupanje) je obavezan');
     if (!prazno(z.jmbg)) {
       var zj = provjeriJMBG(z.jmbg);
       if (zj) gr('zastupnik.jmbg', 'Zastupnik: ' + zj);
     } else if (!prazno(z.ime)) {
-      up('zastupnik.jmbg', 'JMBG zastupnika nije unesen');
+      up('zastupnik.jmbg', 'JMBG direktora nije unesen');
+    }
+    if (doo && !prazno(z.ime) && prazno(z.adresa)) up('zastupnik.adresa', 'Adresa direktora nije unesena (vodi se u evidenciji društva, član 432 Zakona)');
+
+    var dk = f.dokumenta || {};
+    if (!prazno(dk.mandat)) {
+      var md = Number(dk.mandat);
+      if (isNaN(md) || md < 1 || Math.round(md) !== md) gr('dokumenta.mandat', 'Mandat direktora je cijeli broj godina, ili ostavite prazno za neograničen mandat');
+    }
+    if (dk.nadoknada === 'da' && prazno(dk.troskovi)) {
+      gr('dokumenta.troskovi', 'Ako se troškovi osnivanja nadoknađuju, osnivački akt mora navesti njihov procijenjeni iznos (čl. 362 i 365 Zakona)');
     }
 
     var pm = f.punomocnik || {};

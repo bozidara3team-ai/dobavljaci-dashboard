@@ -229,3 +229,5 @@ button.danger-solid { background: var(--danger); border-color: var(--danger); co
 .papir .potpis { width: 6.5cm; max-width: 100%; text-align: center; }
 .papir .potpis .uloga { font-weight: bold; }
 .papir .potpis .linija { border-bottom: 1px solid currentColor; height: 36px; margin-bottom: 4px; }
+
+.grid label .pomoc { font-size: .75rem; color: var(--muted); }

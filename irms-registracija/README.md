@@ -31,19 +31,39 @@ U prikazu firme, blok **Osnivačka dokumenta** pravi dokumente iz unesenih podat
 | Odluka o osnivanju | DOO sa jednim osnivačem |
 | Ugovor o osnivanju | DOO sa više osnivača (iznosi uloga i udjeli se računaju iz kapitala) |
 | Statut | DOO |
-| Odluka o imenovanju izvršnog direktora | svi osim preduzetnika |
-| Izjava direktora o prihvatanju imenovanja | svi osim preduzetnika |
+| Odluka o imenovanju direktora | DOO, samo ako prvi direktor nije imenovan statutom |
+| Izjava direktora o prihvatanju imenovanja | DOO |
 | Ovlašćenje za zastupanje pred Poreskom upravom (IRMS) | kad zahtjev podnosi punomoćnik (npr. računovođa) |
 
 - **Pregled / štampa** otvara dokument spreman za štampu ili „Sačuvaj kao PDF”.
 - **Word** preuzima .docx za doradu.
 - Podaci koji nedostaju ostaju kao prazna linija `______________` i aplikacija ih navodi.
-- Za mjesto i datum akata, mandat direktora i punomoćnika popunite odjeljak
-  **Podaci za osnivačka dokumenta** u formi.
+- Za mjesto i datum akata, mandat direktora, način imenovanja direktora, oblik akta, troškove
+  osnivanja i punomoćnika popunite odjeljak **Podaci za osnivačka dokumenta** u formi.
 
-> Ovo su **opšti modeli** zasnovani na Zakonu o privrednim društvima („Sl. list CG”, br. 65/20 i 146/21),
-> za novčani ulog i DOO bez odbora direktora. Prije potpisivanja neka ih pregleda pravnik ili
-> ovlašćeni računovođa. Za AD i ostale oblike osnivački akt i statut se ne prave.
+#### Usklađenost sa Zakonom o privrednim društvima
+
+Modeli i provjere usklađeni su sa Zakonom o privrednim društvima („Službeni list Crne Gore”,
+br. 90/25, 121/25 i 44/26), prema prečišćenom tekstu. Najvažnije:
+
+| Pravilo | Član |
+|---|---|
+| Osnivački akt: ugovor (više osnivača) ili odluka (jedan); pisani sa ovjerenim potpisima ili elektronski sa kvalifikovanim el. potpisom; ne mijenja se nakon registracije | 8, 9 |
+| Poslovno ime sadrži naziv, oznaku pravnog oblika (DOO) i sjedište; skraćeno ime sadrži oznaku | 23, 24 |
+| Preduzetnik: poslovno ime sadrži ime i prezime, sjedište i oznaku „PR” | 85 |
+| Društvo mora imati adresu za prijem elektronske pošte | 19 |
+| Novčani ulog uplaćuje se u cjelosti prije registracije | 70 |
+| DOO: najviše 30 članova, osnovni kapital najmanje 1 € | 358, 361 |
+| Obavezna sadržina osnivačkog akta (podaci o osnivačima, za strance i podaci o pasošu, iznos uloga, udio u %, troškovi osnivanja) | 362 |
+| Obavezna sadržina statuta, izmjena statuta dvotrećinskom većinom | 363 |
+| Troškovi osnivanja: srazmjerno udjelima, ne iz osnovnog kapitala, najviše do iznosa iz akta | 365 |
+| Prenos udjela, pravo preče kupovine (pisana ponuda, rok 30 dana), ugovor sa ovjerenim potpisima | 374–380 |
+| Organi: skupština i direktor; nadležnosti, sazivanje (8 dana), kvorum, većina | 405–420 |
+| Direktor: imenuje ga skupština ili statut pri osnivanju; mandat neograničen ako statut ne kaže drugačije; uslovi za imenovanje | 422–426 |
+
+> Ovo su **opšti modeli** za DOO sa novčanim ulozima, jednim direktorom i bez odbora direktora.
+> Prije potpisivanja neka ih pregleda pravnik ili ovlašćeni računovođa. Za AD i ostale oblike
+> osnivački akt i statut se ne prave.
 
 ## 2. IRMS asistent
 
