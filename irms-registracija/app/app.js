@@ -75,18 +75,39 @@
     clearTimeout(toast._t);
     toast._t = setTimeout(function () { t.classList.remove('vidljiv'); }, 2600);
   }
+  // Kada aplikacija radi kao stranica na claude.ai, fajlovi se čuvaju preko
+  // dozvole "downloads"; inače običnim preuzimanjem u pregledaču.
+  var preuzimanjeClaude = (window.claude && window.claude.use)
+    ? window.claude.use('downloads').catch(function () { return null; })
+    : Promise.resolve(null);
+  var claudeDownloads = null;
+  preuzimanjeClaude.then(function (d) { claudeDownloads = d; });
+
   function preuzmi(ime, sadrzaj, tip) {
-    if (window.IRMS_DEMO) {
-      toast('U ovom probnom pregledu preuzimanje je isključeno. U aplikaciji na računaru preuzima se „' + ime + '”.');
-      return;
-    }
     var blob = new Blob([sadrzaj], { type: tip });
+    if (claudeDownloads) {
+      return claudeDownloads.save({ filename: ime, data: blob }).then(function () {
+        toast('Sačuvano: ' + ime);
+      }, function (e) {
+        var k = e && e.code;
+        if (k === 'declined') toast('Preuzimanje otkazano.');
+        else if (k === 'rate_limited') toast('Već je otvoren jedan zahtjev za preuzimanje. Sačekajte pa pokušajte ponovo.');
+        else if (k === 'host_unavailable') toast('Ova aplikacija ne može da sačuva fajl. Otvorite stranicu u pregledaču na računaru.');
+        else toast('Preuzimanje ovdje nije moguće.');
+        throw e;
+      });
+    }
+    if (window.IRMS_DEMO) {
+      toast('Preuzimanje u ovom pregledu nije dostupno.');
+      return Promise.reject(new Error('nedostupno'));
+    }
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = ime;
     document.body.appendChild(a);
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    return Promise.resolve();
   }
   function danas() { return new Date().toISOString().slice(0, 10); }
 
@@ -482,7 +503,7 @@
 
   function preuzmiWord(d, f) {
     var bajtovi = window.Dokumenti.uDocx(d.blokovi);
-    preuzmi(d.id + '-' + slug(f.naziv) + '.docx', bajtovi,
+    return preuzmi(d.id + '-' + slug(f.naziv) + '.docx', bajtovi,
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   }
 
@@ -492,13 +513,15 @@
     if (!b || !f) return;
     if (b.id === 'dok-svi') {
       var svi = window.Dokumenti.zaFirmu(f).filter(function (d) { return d.dostupan; });
-      svi.forEach(function (d, i) { setTimeout(function () { preuzmiWord(d, f); }, i * 400); });
-      toast('Preuzimam ' + svi.length + ' dokumenata…');
+      // Jedan po jedan: svaki sljedeći tek kad se prethodni sačuva.
+      svi.reduce(function (lanac, d) {
+        return lanac.then(function () { return preuzmiWord(d, f); });
+      }, Promise.resolve()).catch(function () { /* poruka je već prikazana */ });
       return;
     }
     var d = nadjiDokument(b.dataset.dokPregled || b.dataset.dokWord);
     if (!d) return;
-    if (b.dataset.dokWord) { preuzmiWord(d, f); return; }
+    if (b.dataset.dokWord) { preuzmiWord(d, f).catch(function () {}); return; }
     otvoriPregledDokumenta(d, f);
   });
 
@@ -513,7 +536,7 @@
     dlgDok.showModal();
   }
   $('#dok-word').addEventListener('click', function () {
-    if (pregledano) preuzmiWord(pregledano.d, pregledano.f);
+    if (pregledano) preuzmiWord(pregledano.d, pregledano.f).catch(function () {});
   });
   $('#dok-stampa').addEventListener('click', function () {
     if (!pregledano) return;
@@ -580,8 +603,9 @@
         return c;
       })
     };
-    preuzmi(ime, JSON.stringify(podaci, null, 2), 'application/json');
-    toast('Izvezeno ' + lista.length + ' firm' + (lista.length === 1 ? 'a' : 'i') + ' za asistenta.');
+    preuzmi(ime, JSON.stringify(podaci, null, 2), 'application/json').then(function () {
+      toast('Izvezeno ' + lista.length + ' firm' + (lista.length === 1 ? 'a' : 'i') + ' za asistenta.');
+    }, function () { /* poruka je već prikazana */ });
   }
 
   $('#btn-izvoz-asistent').addEventListener('click', function () {
@@ -593,7 +617,7 @@
   $('#btn-izvoz-json').addEventListener('click', function () {
     preuzmi('irms-rezervna-kopija-' + danas() + '.json',
       JSON.stringify({ format: 'irms-registracija-backup', verzija: VERZIJA_IZVOZA, izvezeno: sada(), firme: firme }, null, 2),
-      'application/json');
+      'application/json').catch(function () { /* poruka je već prikazana */ });
   });
 
   $('#btn-uvoz-json').addEventListener('click', function () { $('#uvoz-fajl').click(); });
@@ -644,7 +668,8 @@
       }).join(';');
     }));
     // BOM da Excel ispravno prikaže č, ć, š, ž, đ
-    preuzmi('irms-firme-' + danas() + '.csv', '﻿' + redovi.join('\r\n'), 'text/csv;charset=utf-8');
+    preuzmi('irms-firme-' + danas() + '.csv', '﻿' + redovi.join('\r\n'), 'text/csv;charset=utf-8')
+      .catch(function () { /* poruka je već prikazana */ });
   });
 
   // ---------- inicijalizacija ----------
