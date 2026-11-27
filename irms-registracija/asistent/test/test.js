@@ -114,7 +114,7 @@ const FIRMA = {
     sifraDjelatnosti: '6391', opisDjelatnosti: 'Djelatnosti internet portala', kapital: '1', email: 'info@primjer.example',
     osnivaci: [{ tip: 'fizicko', ime: 'Petar Petrović', jmbg: '1503985210000', drzavljanstvo: 'Crna Gora', adresa: 'Ulica Primjera 2a, Bar, Crna Gora', udio: '100' }],
     zastupnik: { ime: 'Jovana Jovanović', jmbg: '0101980215009', adresa: 'Ulica Primjera 2a, Bar', drzavljanstvo: 'Crnogorsko', licnaKarta: 'LK0000000' },
-    dokumenta: { mjesto: 'Bar', datum: '2026-06-04' }
+    dokumenta: { mjesto: 'Bar', datum: '2026-06-04', funkcija: 'izvrsni' }
   };
   const dok = (f, id) => D.zaFirmu(f).find((d) => d.id === id);
   await t('svi šabloni dostupni i kompletni', () => {
@@ -134,7 +134,11 @@ const FIRMA = {
     assert.match(x, /Pretežna djelatnost društva je: 6391 – Djelatnosti internet portala\./);
     assert.match(x, /Osnovni kapital društva iznosi 1,00 EUR\./);
     assert.match(x, /Ime i prezime \| Petar Petrović\nIdentifikacioni podatak \| 1503985210000\nAdresa \| Ulica Primjera 2a, Bar, Crna Gora\nIznos novčanog uloga \| 1,00 EUR\nUdio u društvu \| 100%/);
-    assert.match(x, /Za izvršnog direktora društva imenuje se Jovana Jovanović\./);
+    assert.match(x, /Društvo ima jednog izvršnog direktora, koga imenuje i razrješava jedini član društva\.\nPrvi izvršni direktor društva imenuje se statutom društva\./);
+    assert.ok(!/imenuje se Jovana Jovanović/.test(x), 'direktor se ne imenuje osnivačkim aktom (čl. 9 st. 3)');
+    assert.match(x, /dužan da novčani ulog uplati u cjelosti na račun društva prije registracije/);
+    assert.match(x, /potpis osnivača ovjerava se u skladu sa zakonom kojim se uređuje ovjera potpisa/);
+    assert.match(x, /Ova odluka ne može se mijenjati nakon registracije osnivanja društva/);
     assert.match(x, /Član 12\nZavršne odredbe/);
     assert.match(x, /U Baru, dana 04\.06\.2026\. godine\nOSNIVAČ: Petar Petrović/);
   });
@@ -143,7 +147,7 @@ const FIRMA = {
     assert.match(x, /Puno poslovno ime društva glasi: Primjer društvo sa ograničenom odgovornošću Bar, Crna Gora\./);
     assert.match(x, /Red\. br\. \| Član društva \| Iznos uloga \(EUR\) \| Udio u osnovnom kapitalu \(%\)\n1\. \| PETAR PETROVIĆ \| 1,00 \| 100/);
     assert.match(x, /Član 14\nIzvršni direktor\nDruštvo ima jednog izvršnog direktora/);
-    assert.match(x, /Izvršni direktor društva je: Jovana Jovanović\./);
+    assert.match(x, /Prilikom osnivanja društva, za izvršnog direktora društva imenuje se: Jovana Jovanović\./);
     assert.match(x, /Mandat izvršnog direktora traje do razrješenja/);
     assert.match(x, /Društvo zastupa i predstavlja izvršni direktor JOVANA JOVANOVIĆ, JMBG 0101980215009, adresa prebivališta: Ulica Primjera 2a, Bar, samostalno i sa neograničenim ovlašćenjima\. U saglasnosti sa Osnivačem/);
     assert.match(x, /dvotrećinsku većinu glasačkih prava/);
@@ -194,11 +198,11 @@ const FIRMA = {
     const u = dok(f, 'ugovor-o-osnivanju');
     assert.ok(u.dostupan);
     assert.match(tekst(u), /Marko Marković – ukupan iznos novčanog uloga 600,00 €, udio u osnovnom kapitalu Društva 60%/);
-    assert.match(tekst(u), /Organi Društva su skupština i izvršni direktor/);
+    assert.match(tekst(u), /Organi Društva su skupština i direktor\./);
     const s = tekst(dok(f, 'statut'));
     assert.match(s, /osnivači društva usvajaju sljedeći:/);
     assert.match(s, /1\. \| MARKO MARKOVIĆ \| 600,00 \| 60\n2\. \| ANA ANIĆ \| 400,00 \| 40/);
-    assert.match(s, /Uz saglasnost skupštine društva, izvršni direktor može/);
+    assert.match(s, /Uz saglasnost skupštine društva, direktor može/);
     assert.match(tekst(dok(f, 'odluka-o-imenovanju-direktora')), /Ugovora o osnivanju društva i Statuta društva .*, skupština društva donosi sljedeću:/);
   });
   await t('stranac kao osnivač: podaci o pasošu', () => {
@@ -210,13 +214,44 @@ const FIRMA = {
     const s = dok({ naziv: 'X DOO', pravniOblik: 'Društvo sa ograničenom odgovornošću (DOO)' }, 'statut');
     assert.ok(s.nedostaje.includes('osnovni kapital'));
     assert.match(tekst(s), /______________ EUR/);
-    assert.ok(dok({ naziv: 'X', pravniOblik: 'Društvo sa ograničenom odgovornošću (DOO)' }, 'izjava-direktora').nedostaje.includes('broj lične karte / pasoša izvršnog direktora'));
+    assert.ok(dok({ naziv: 'X', pravniOblik: 'Društvo sa ograničenom odgovornošću (DOO)' }, 'izjava-direktora').nedostaje.includes('broj lične karte / pasoša direktora'));
   });
   await t('preduzetnik nema statut ni izvršnog direktora', () => {
     const docs = D.zaFirmu({ naziv: 'Y', pravniOblik: 'Preduzetnik' });
     assert.ok(!docs.find((d) => d.id === 'statut').dostupan);
     assert.ok(!docs.find((d) => d.id === 'odluka-o-imenovanju-direktora').dostupan);
     assert.ok(docs.find((d) => d.id === 'ovlascenje').dostupan);
+  });
+  await t('podrazumijevano „direktor” (čl. 405), svuda i velikim slovima', () => {
+    const f = JSON.parse(JSON.stringify(PS));
+    delete f.dokumenta.funkcija;
+    const svi = D.zaFirmu(f).filter((d) => d.dostupan);
+    svi.forEach((d) => assert.ok(!/izvršn/i.test(tekst(d) + d.naziv), d.id));
+    const o = dok(f, 'odluka-o-imenovanju-direktora');
+    assert.strictEqual(o.naziv, 'Odluka o imenovanju direktora');
+    assert.match(tekst(o), /^ODLUKA O IMENOVANJU DIREKTORA$/m);
+    assert.match(tekst(o), /^Direktor se imenuje na mandat/m);
+    assert.match(tekst(dok(f, 'izjava-direktora')), /^SAGLASNOST ZA IMENOVANJE DIREKTORA$/m);
+    assert.match(tekst(dok(f, 'izjava-direktora')), /imenovan\/a za Direktora privrednog društva/);
+  });
+  await t('automatska ispravka poslovnog imena (čl. 23, 24, 85)', () => {
+    const doo = { pravniOblik: 'Društvo sa ograničenom odgovornošću (DOO)', sjediste: { opstina: 'Bar', mjesto: 'Bar' } };
+    let r = V.ispraviPoslovnoIme(Object.assign({ naziv: 'Primjer', skraceniNaziv: 'Primjer' }, doo));
+    assert.strictEqual(r.naziv, 'Primjer DOO Bar');
+    assert.strictEqual(r.skraceniNaziv, 'Primjer DOO');
+    assert.strictEqual(r.promjene.length, 2);
+    r = V.ispraviPoslovnoIme(Object.assign({ naziv: 'Primjer d.o.o.', skraceniNaziv: 'Primjer d.o.o.' }, doo));
+    assert.deepStrictEqual([r.naziv, r.skraceniNaziv], ['Primjer d.o.o. Bar', 'Primjer d.o.o.']);
+    r = V.ispraviPoslovnoIme(Object.assign({ naziv: 'Primjer društvo sa ograničenom odgovornošću Bar, Crna Gora', skraceniNaziv: 'Primjer d.o.o., Bar' }, doo));
+    assert.strictEqual(r.promjene.length, 0);
+    const pr = { pravniOblik: 'Preduzetnik', sjediste: { opstina: 'Kolašin', mjesto: 'Kolašin' }, osnivaci: [{ tip: 'fizicko', ime: 'Milica Marić' }] };
+    r = V.ispraviPoslovnoIme(Object.assign({ naziv: 'Kafe Tara', skraceniNaziv: 'Kafe Tara' }, pr));
+    assert.deepStrictEqual([r.naziv, r.skraceniNaziv], ['Milica Marić PR Kafe Tara Kolašin', 'Milica Marić PR Kafe Tara']);
+    [doo, pr].forEach((o) => ['Bilo šta', 'X d.o.o.', 'Kafe PR'].forEach((n) => {
+      const f = Object.assign({ naziv: n, skraceniNaziv: n }, o);
+      Object.assign(f, V.ispraviPoslovnoIme(f));
+      assert.deepStrictEqual(V.provjeriFirmu(f).errors.filter((e) => e.polje === 'naziv' || e.polje === 'skraceniNaziv'), [], n);
+    }));
   });
   await t('docx (sa tabelama) se otvara u Word formatu', () => {
     const fs = require('fs'), os = require('os'), cp = require('child_process');

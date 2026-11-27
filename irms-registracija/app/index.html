@@ -92,7 +92,7 @@
         </fieldset>
 
         <fieldset>
-          <legend>Izvršni direktor (lice ovlašćeno za zastupanje)</legend>
+          <legend>Direktor (lice ovlašćeno za zastupanje)</legend>
           <div class="grid">
             <label>Ime i prezime *<input name="zastupnik.ime"></label>
             <label>JMBG<input name="zastupnik.jmbg" inputmode="numeric" maxlength="13"></label>
@@ -129,6 +129,12 @@
             <label>Mjesto donošenja akata<input name="dokumenta.mjesto" placeholder="podrazumijevano: mjesto sjedišta"></label>
             <label>Datum donošenja akata<input name="dokumenta.datum" type="date"></label>
             <label>Mandat direktora (godina) <span class="pomoc">prazno = neograničen</span><input name="dokumenta.mandat" type="number" min="1" placeholder="neograničen"></label>
+            <label>Naziv funkcije u aktima
+              <select name="dokumenta.funkcija">
+                <option value="direktor">Direktor (čl. 405 Zakona)</option>
+                <option value="izvrsni">Izvršni direktor</option>
+              </select>
+            </label>
             <label>Oblik osnivačkog akta
               <select name="dokumenta.oblik">
                 <option value="pisani">Pisani (ovjereni potpisi)</option>
@@ -142,7 +148,7 @@
                 <option value="da">Da, do procjene</option>
               </select>
             </label>
-            <label>Dosadašnji izvršni direktor <span class="pomoc">samo kod promjene; dodaje razrješenje</span><input name="dokumenta.prethodniDirektor" placeholder="ime i prezime"></label>
+            <label>Dosadašnji direktor <span class="pomoc">samo kod promjene; dodaje razrješenje</span><input name="dokumenta.prethodniDirektor" placeholder="ime i prezime"></label>
           </div>
           <p class="napomena-mala">Punomoćnik – lice koje podnosi zahtjev na IRMS-u umjesto direktora (npr. računovođa). Nije obavezno.</p>
           <div class="grid">

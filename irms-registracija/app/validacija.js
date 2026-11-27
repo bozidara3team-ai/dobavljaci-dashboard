@@ -130,6 +130,44 @@
   }
 
   /*
+   * Automatski ispravlja poslovno ime i skraćeno poslovno ime tako da
+   * zadovolje član 23, 24 i 85 Zakona: dodaje oznaku pravnog oblika
+   * (DOO, AD, OD, KD, PR), sjedište i, kod preduzetnika, ime i prezime.
+   * Vraća { naziv, skraceniNaziv, promjene: [opis] }; ništa ne mijenja ako je ime već ispravno.
+   */
+  function ispraviPoslovnoIme(f) {
+    f = f || {};
+    var oz = oznakaZa(f);
+    var a = f.sjediste || {};
+    var rez = { naziv: f.naziv || '', skraceniNaziv: f.skraceniNaziv || '', promjene: [] };
+    if (!oz || prazno(rez.naziv)) return rez;
+    var oznaka = oz.skr.toUpperCase();
+    var pr = jePreduzetnik(f) ? (((f.osnivaci || [])[0] || {}).ime || '').trim() : '';
+
+    var n = String(rez.naziv).trim().replace(/\s+/g, ' ');
+    if (pr && !sadrzi(n, pr)) n = pr + ' ' + n;
+    if (!imaOznaku(n, oz)) n = pr ? n.replace(pr, pr + ' ' + oznaka) : n + ' ' + oznaka;
+    var sjediste = a.opstina || a.mjesto;
+    if (sjediste && !sadrzi(n, a.opstina) && !sadrzi(n, a.mjesto)) n = n + ' ' + sjediste;
+    if (n !== rez.naziv) {
+      rez.promjene.push('poslovno ime „' + rez.naziv + '” → „' + n + '”');
+      rez.naziv = n;
+    }
+
+    var s = String(rez.skraceniNaziv).trim().replace(/\s+/g, ' ');
+    if (s) {
+      var ns = s;
+      if (pr && !sadrzi(ns, pr)) ns = pr + ' ' + ns;
+      if (!imaOznaku(ns, oz)) ns = pr ? ns.replace(pr, pr + ' ' + oznaka) : ns + ' ' + oznaka;
+      if (ns !== rez.skraceniNaziv) {
+        rez.promjene.push('skraćeno poslovno ime „' + rez.skraceniNaziv + '” → „' + ns + '”');
+        rez.skraceniNaziv = ns;
+      }
+    }
+    return rez;
+  }
+
+  /*
    * Glavna provjera. Vraća { errors: [{polje, poruka}], warnings: [...] }.
    */
   function provjeriFirmu(f) {
@@ -299,6 +337,7 @@
     provjeriEmail: provjeriEmail,
     provjeriSifruDjelatnosti: provjeriSifruDjelatnosti,
     provjeriFirmu: provjeriFirmu,
+    ispraviPoslovnoIme: ispraviPoslovnoIme,
     samoCifre: samoCifre
   };
 

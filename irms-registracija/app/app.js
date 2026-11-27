@@ -128,6 +128,21 @@
       firme = window.IRMS_DEMO && window.IRMS_DEMO.primjeri ? JSON.parse(JSON.stringify(window.IRMS_DEMO.primjeri)) : [];
       skladisteRadi = false;
     }
+    // Firme unesene ranije dobijaju istu automatsku ispravku poslovnog imena.
+    var ispravljeno = 0;
+    firme.forEach(function (f) {
+      var isp = V.ispraviPoslovnoIme(f);
+      if (!isp.promjene.length) return;
+      f.naziv = isp.naziv;
+      f.skraceniNaziv = isp.skraceniNaziv;
+      f.istorija = (f.istorija || []).concat([{ vrijeme: sada(), status: f.status, napomena: 'Automatski ispravljeno: ' + isp.promjene.join('; ') }]);
+      f.izmijenjeno = sada();
+      ispravljeno++;
+    });
+    if (ispravljeno) {
+      sacuvaj();
+      setTimeout(function () { toast('Poslovno ime automatski ispravljeno kod ' + ispravljeno + (ispravljeno === 1 ? ' firme' : ' firmi') + ' (vidi istoriju).'); }, 400);
+    }
   }
   function sacuvaj() {
     try {
@@ -314,6 +329,12 @@
   forma.addEventListener('submit', function (ev) {
     ev.preventDefault();
     var podaci = citajFormu();
+    var ispravka = V.ispraviPoslovnoIme(podaci);
+    if (ispravka.promjene.length) {
+      podaci.naziv = ispravka.naziv;
+      podaci.skraceniNaziv = ispravka.skraceniNaziv;
+      toast('Automatski ispravljeno: ' + ispravka.promjene.join('; '));
+    }
     if (!podaci.naziv) {
       toast('Unesite bar naziv firme.');
       forma.querySelector('[name="naziv"]').classList.add('los');
@@ -346,8 +367,20 @@
   });
 
   $('#btn-provjeri').addEventListener('click', function () {
-    var p = V.provjeriFirmu(citajFormu());
+    var podaci = citajFormu();
+    var ispravka = V.ispraviPoslovnoIme(podaci);
+    if (ispravka.promjene.length) {
+      forma.querySelector('[name="naziv"]').value = ispravka.naziv;
+      forma.querySelector('[name="skraceniNaziv"]').value = ispravka.skraceniNaziv;
+      podaci.naziv = ispravka.naziv;
+      podaci.skraceniNaziv = ispravka.skraceniNaziv;
+    }
+    var p = V.provjeriFirmu(podaci);
     prikaziProvjeru(p, $('#forma-provjera'));
+    if (ispravka.promjene.length) {
+      $('#forma-provjera').insertAdjacentHTML('afterbegin', '<p class="ok">✓ Automatski ispravljeno po čl. 23, 24 i 85 Zakona: ' +
+        esc(ispravka.promjene.join('; ')) + '</p>');
+    }
     oznaciPolja(p);
     $('#forma-provjera').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });

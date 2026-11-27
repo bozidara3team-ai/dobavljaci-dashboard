@@ -410,7 +410,8 @@
     b.push(clanNaslov(c, 'Osnovni kapital'),
       { t: 'p', x: 'Osnovni kapital društva iznosi ' + iznos(broj(f.kapital)) + ' EUR.' },
       { t: 'p', x: 'Osnovni kapital se sastoji od novčanog uloga osnivača.' },
-      { t: 'p', x: 'Osnivač u osnovnom kapitalu društva ima udio od ' + (x.udio != null ? procenat(x.udio) : PRAZNO) + '.' });
+      { t: 'p', x: 'Osnivač u osnovnom kapitalu društva ima udio od ' + (x.udio != null ? procenat(x.udio) : PRAZNO) + '.' },
+      { t: 'p', x: 'Osnivač je dužan da novčani ulog uplati u cjelosti na račun društva prije registracije društva u Centralnom registru privrednih subjekata Crne Gore.' });
     if (get(f, 'dokumenta.nadoknada') === 'da' || ima(get(f, 'dokumenta.troskovi'))) {
       troskoviTekst(f, true).forEach(function (t) { b.push({ t: 'p', x: t }); });
     }
@@ -425,8 +426,8 @@
       { t: 'p', x: 'Kod jednočlanog društva ovlašćenja skupštine vrši jedini član društva, a odluke se donose u pisanom obliku.' });
 
     b.push(clanNaslov(c, 'Izvršni direktor'),
-      { t: 'p', x: 'Društvo ima jednog izvršnog direktora.' },
-      { t: 'p', x: 'Za izvršnog direktora društva imenuje se ' + (get(f, 'zastupnik.ime') || PRAZNO) + '.' },
+      { t: 'p', x: 'Društvo ima jednog izvršnog direktora, koga imenuje i razrješava jedini član društva.' },
+      { t: 'p', x: 'Prvi izvršni direktor društva imenuje se statutom društva.' },
       { t: 'p', x: 'Izvršni direktor vodi poslovanje društva, organizuje rad društva, izvršava odluke jedinog člana društva, zastupa društvo i obavlja druge poslove u skladu sa zakonom, statutom društva i odlukama jedinog člana društva.' });
 
     b.push(clanNaslov(c, 'Zastupanje društva'),
@@ -441,6 +442,10 @@
 
     b.push(clanNaslov(c, 'Završne odredbe'),
       { t: 'p', x: 'Ova odluka predstavlja osnivački akt društva i stupa na snagu danom potpisivanja, a primjenjuje se od dana registracije društva u Centralnom registru privrednih subjekata Crne Gore.' },
+      { t: 'p', x: elektronski(f)
+        ? 'Ova odluka sačinjena je u elektronskom obliku i osnivač je potpisuje kvalifikovanim elektronskim potpisom, odnosno kvalifikovanim elektronskim pečatom.'
+        : 'Ova odluka sačinjena je u pisanom obliku, a potpis osnivača ovjerava se u skladu sa zakonom kojim se uređuje ovjera potpisa, rukopisa i prepisa.' },
+      { t: 'p', x: 'Ova odluka ne može se mijenjati nakon registracije osnivanja društva u Centralnom registru privrednih subjekata Crne Gore.' },
       { t: 'p', x: 'Na sva pitanja koja nijesu uređena ovom odlukom primjenjuju se odredbe Zakona o privrednim društvima Crne Gore i drugih važećih propisa.' });
 
     b.push(uMjestuDana(f), { t: 'potpisi', lista: [{ uloga: 'OSNIVAČ:', ime: pravno ? (o.ime || PRAZNO) + ', zastupnik ' + (o.zastupnik || PRAZNO) : (o.ime || PRAZNO) }] });
@@ -528,7 +533,7 @@
 
     b.push(clanNaslov(c, 'Izvršni direktor'),
       { t: 'p', x: 'Društvo ima jednog izvršnog direktora, koga imenuje i razrješava skupština društva.' },
-      { t: 'p', x: 'Izvršni direktor društva je: ' + (z.ime || PRAZNO) + '.' },
+      { t: 'p', x: 'Prilikom osnivanja društva, za izvršnog direktora društva imenuje se: ' + (z.ime || PRAZNO) + '.' },
       { t: 'p', x: m
         ? 'Mandat izvršnog direktora traje ' + godina(m).replace('godinu', 'godinu dana') + ', osim ako odlukom o imenovanju nije drugačije određeno.'
         : 'Mandat izvršnog direktora traje do razrješenja, osim ako odlukom o imenovanju nije drugačije određeno.' },
@@ -692,16 +697,39 @@
       { id: 'ovlascenje', naziv: 'Ovlašćenje za zastupanje pred Poreskom upravom', dostupan: true,
         polja: osnovna.concat(['punomocnik.ime', 'punomocnik.jmbg']), fn: ovlascenje }
     ];
+    var nazivFunkcije = get(f, 'dokumenta.funkcija') === 'izvrsni' ? function (t) { return t; } : samoDirektor;
     return lista.map(function (d) {
       return {
         id: d.id,
-        naziv: d.naziv,
+        naziv: nazivFunkcije(d.naziv),
         dostupan: d.dostupan,
         razlog: d.dostupan ? '' : d.razlog,
-        nedostaje: d.dostupan ? nedostaje(f, d.polja) : [],
-        blokovi: d.dostupan ? d.fn(f) : []
+        nedostaje: d.dostupan ? nedostaje(f, d.polja).map(nazivFunkcije) : [],
+        blokovi: d.dostupan ? d.fn(f).map(function (b) { return primijeniNaBlok(b, nazivFunkcije); }) : []
       };
     });
+  }
+
+  /*
+   * Zakon za DOO koristi naziv "direktor" (član 405); "izvršni direktor"
+   * postoji uz odbor direktora. Podrazumijevano se piše "direktor".
+   */
+  function samoDirektor(t) {
+    if (t == null) return t;
+    return String(t).replace(/(izvršn|Izvršn|IZVRŠN)[a-zšđčćžA-ZŠĐČĆŽ]*\s+(direktor[a-zšđčćž]*|Direktor[a-zšđčćž]*|DIREKTOR[A-ZŠĐČĆŽ]*)/g, function (m, prvi, drugi) {
+      return prvi === 'Izvršn' ? drugi.charAt(0).toUpperCase() + drugi.slice(1) : drugi;
+    });
+  }
+
+  function primijeniNaBlok(b, fn) {
+    var n = {};
+    Object.keys(b).forEach(function (k) { n[k] = b[k]; });
+    if (n.x != null) n.x = fn(n.x);
+    if (n.naslov != null) n.naslov = fn(n.naslov);
+    if (n.zaglavlje) n.zaglavlje = n.zaglavlje.map(fn);
+    if (n.redovi) n.redovi = n.redovi.map(function (r) { return r.map(fn); });
+    if (n.lista) n.lista = n.lista.map(function (p) { return { uloga: fn(p.uloga), ime: p.ime }; });
+    return n;
   }
 
   // ---------- HTML ----------
