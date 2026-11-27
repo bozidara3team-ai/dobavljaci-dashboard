@@ -127,7 +127,7 @@ const FIRMA = {
   await t('odluka o osnivanju: tekst klijenta sa podacima', () => {
     const x = tekst(dok(PS, 'odluka-o-osnivanju'));
     assert.match(x, /^OSNIVAČKI AKT$/m);
-    assert.match(x, /^PRIMJER D\.O\.O\., BAR, CRNA GORA$/m);
+    assert.match(x, /^PRIMJER DRUŠTVO SA OGRANIČENOM ODGOVORNOŠĆU BAR, CRNA GORA$/m);
     assert.match(x, /osnivač Petar Petrović, JMBG 1503985210000, sa prebivalištem\/boravištem na adresi Ulica Primjera 2a, Bar, Crna Gora donosi sljedeću:/);
     assert.match(x, /Osniva se društvo sa ograničenom odgovornošću pod poslovnim imenom: Primjer društvo sa ograničenom odgovornošću Bar, Crna Gora\./);
     assert.match(x, /Član 3\nSjedište društva\nSjedište društva je u Baru, na adresi Ulica Primjera 2a\./);
@@ -144,6 +144,7 @@ const FIRMA = {
   });
   await t('statut: tekst klijenta, tabela udjela i zastupanje', () => {
     const x = tekst(dok(PS, 'statut'));
+    assert.match(x, /^STATUT\nPRIMJER DRUŠTVO SA OGRANIČENOM ODGOVORNOŠĆU BAR, CRNA GORA$/m);
     assert.match(x, /Puno poslovno ime društva glasi: Primjer društvo sa ograničenom odgovornošću Bar, Crna Gora\./);
     assert.match(x, /Red\. br\. \| Član društva \| Iznos uloga \(EUR\) \| Udio u osnovnom kapitalu \(%\)\n1\. \| PETAR PETROVIĆ \| 1,00 \| 100/);
     assert.match(x, /Član 14\nIzvršni direktor\nDruštvo ima jednog izvršnog direktora/);

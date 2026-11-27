@@ -375,7 +375,7 @@
     var b = [
       { t: 'naslov', x: 'OSNIVAČKI AKT' },
       { t: 'podnaslov', x: 'ODLUKA O OSNIVANJU DRUŠTVA SA OGRANIČENOM ODGOVORNOŠĆU' },
-      { t: 'podnaslov', x: naslovFirme(f) },
+      { t: 'podnaslov', x: velikaSlova(f.naziv) },
       { t: 'p', x: 'Na osnovu ' + zakonKlijent() + ', osnivač ' + (o.ime || PRAZNO) + ', ' + identifikacija(o) + ', ' +
         (pravno ? 'sa sjedištem na adresi ' : 'sa prebivalištem/boravištem na adresi ') + (o.adresa || PRAZNO) + ' donosi sljedeću:' },
       { t: 'naslov', x: 'ODLUKU O OSNIVANJU' },
@@ -461,7 +461,7 @@
     var c = brojac();
     var b = [
       { t: 'naslov', x: 'STATUT' },
-      { t: 'podnaslov', x: naslovFirme(f) },
+      { t: 'podnaslov', x: velikaSlova(f.naziv) },
       { t: 'p', x: 'Na osnovu ' + zakonKlijent() + (jedan
         ? ' i odluke o osnivanju društva, osnivač društva usvaja sljedeći:'
         : ' i ugovora o osnivanju društva, osnivači društva usvajaju sljedeći:') },
