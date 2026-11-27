@@ -231,3 +231,7 @@ button.danger-solid { background: var(--danger); border-color: var(--danger); co
 .papir .potpis .linija { border-bottom: 1px solid currentColor; height: 36px; margin-bottom: 4px; }
 
 .grid label .pomoc { font-size: .75rem; color: var(--muted); }
+
+.papir table.podaci { border-collapse: collapse; width: 100%; margin: 6px 0 10px; }
+.papir table.podaci th, .papir table.podaci td { border: 1px solid currentColor; padding: 4px 8px; text-align: left; vertical-align: top; }
+.papir table.podaci tbody th { font-weight: normal; width: 40%; }

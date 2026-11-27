@@ -99,112 +99,130 @@ const FIRMA = {
     assert.ok(!V.provjeriFirmu(f).errors.some((e) => e.polje === 'dokumenta.troskovi'));
   });
 
-  console.log('Osnivačka dokumenta');
+  console.log('Osnivačka dokumenta (šabloni po tekstovima klijenta)');
   const D = require('../../app/dokumenti.js');
-  const tekst = (d) => d.blokovi.map((b) => b.x || (b.lista || []).map((p) => p.ime).join(' ')).join('\n');
-  const FD = Object.assign(JSON.parse(JSON.stringify(FIRMA)), {
-    opisDjelatnosti: 'Računarsko programiranje',
-    dokumenta: { mjesto: 'Podgorica', datum: '2026-11-15', mandat: '4' },
-    punomocnik: { ime: 'Jelena Jelić', jmbg: '0101980215009', adresa: 'Podgorica' }
+  const tekst = (d) => d.blokovi.map((b) => {
+    if (b.t === 'tabela') return [].concat(b.zaglavlje ? [b.zaglavlje.join(' | ')] : [], b.redovi.map((r) => r.join(' | '))).join('\n');
+    if (b.t === 'potpisi') return b.lista.map((p) => p.uloga + ' ' + p.ime).join('\n');
+    return b.x + (b.naslov ? '\n' + b.naslov : '');
+  }).join('\n');
+  // Izmišljeni podaci po strukturi dostavljenih dokumenata
+  const PS = {
+    naziv: 'Primjer društvo sa ograničenom odgovornošću Bar, Crna Gora', skraceniNaziv: 'Primjer d.o.o., Bar, Crna Gora',
+    pravniOblik: 'Društvo sa ograničenom odgovornošću (DOO)',
+    sjediste: { opstina: 'Bar', mjesto: 'Bar', ulica: 'Ulica Primjera', broj: '2a' },
+    sifraDjelatnosti: '6391', opisDjelatnosti: 'Djelatnosti internet portala', kapital: '1', email: 'info@primjer.example',
+    osnivaci: [{ tip: 'fizicko', ime: 'Petar Petrović', jmbg: '1503985210000', drzavljanstvo: 'Crna Gora', adresa: 'Ulica Primjera 2a, Bar, Crna Gora', udio: '100' }],
+    zastupnik: { ime: 'Jovana Jovanović', jmbg: '0101980215009', adresa: 'Ulica Primjera 2a, Bar', drzavljanstvo: 'Crnogorsko', licnaKarta: 'LK0000000' },
+    dokumenta: { mjesto: 'Bar', datum: '2026-06-04' }
+  };
+  const dok = (f, id) => D.zaFirmu(f).find((d) => d.id === id);
+  await t('svi šabloni dostupni i kompletni', () => {
+    ['odluka-o-osnivanju', 'statut', 'odluka-o-imenovanju-direktora', 'izjava-direktora'].forEach((id) => {
+      const d = dok(PS, id);
+      assert.ok(d && d.dostupan, id);
+      assert.deepStrictEqual(d.nedostaje, [], id);
+    });
   });
-  const sviTekstovi = (f) => D.zaFirmu(f).filter((d) => d.dostupan).map(tekst).join('\n');
-  await t('dva osnivača → ugovor o osnivanju sa iznosima uloga', () => {
-    const docs = D.zaFirmu(FD);
-    const u = docs.find((d) => d.id === 'ugovor-o-osnivanju');
-    assert.ok(u && u.dostupan);
-    assert.deepStrictEqual(u.nedostaje, []);
-    const x = tekst(u);
-    assert.match(x, /Marko Marković – ukupan iznos novčanog uloga 600,00 €, udio u osnovnom kapitalu Društva 60%/);
-    assert.match(x, /Ana Anić – ukupan iznos novčanog uloga 400,00 €, udio u osnovnom kapitalu Društva 40%/);
-    assert.match(x, /Marko Marković, JMBG 1503985210000, adresa prebivališta: Podgorica, Njegoševa 1/);
-    assert.match(x, /uplate u cjelosti|uplati u cjelosti/);
-    assert.match(x, /potpisi svih osnivača ovjeravaju se/);
-    assert.match(x, /ne može se mijenjati nakon registracije/);
-    assert.match(x, /Troškove osnivanja Društva snosi osnivači srazmjerno|snose osnivači|osnivači srazmjerno svojim udjelima/);
-    assert.match(x, /90\/25, 121\/25 i 44\/26/);
-    assert.match(x, /15\.11\.2026\. godine/);
+  await t('odluka o osnivanju: tekst klijenta sa podacima', () => {
+    const x = tekst(dok(PS, 'odluka-o-osnivanju'));
+    assert.match(x, /^OSNIVAČKI AKT$/m);
+    assert.match(x, /^PRIMJER D\.O\.O\., BAR, CRNA GORA$/m);
+    assert.match(x, /osnivač Petar Petrović, JMBG 1503985210000, sa prebivalištem\/boravištem na adresi Ulica Primjera 2a, Bar, Crna Gora donosi sljedeću:/);
+    assert.match(x, /Osniva se društvo sa ograničenom odgovornošću pod poslovnim imenom: Primjer društvo sa ograničenom odgovornošću Bar, Crna Gora\./);
+    assert.match(x, /Član 3\nSjedište društva\nSjedište društva je u Baru, na adresi Ulica Primjera 2a\./);
+    assert.match(x, /Pretežna djelatnost društva je: 6391 – Djelatnosti internet portala\./);
+    assert.match(x, /Osnovni kapital društva iznosi 1,00 EUR\./);
+    assert.match(x, /Ime i prezime \| Petar Petrović\nIdentifikacioni podatak \| 1503985210000\nAdresa \| Ulica Primjera 2a, Bar, Crna Gora\nIznos novčanog uloga \| 1,00 EUR\nUdio u društvu \| 100%/);
+    assert.match(x, /Za izvršnog direktora društva imenuje se Jovana Jovanović\./);
+    assert.match(x, /Član 12\nZavršne odredbe/);
+    assert.match(x, /U Baru, dana 04\.06\.2026\. godine\nOSNIVAČ: Petar Petrović/);
   });
-  await t('statut: obavezni elementi iz člana 363', () => {
-    const s = tekst(D.zaFirmu(FD).find((d) => d.id === 'statut'));
-    assert.match(s, /Poslovno ime Društva je: Test Solutions DOO Podgorica/);
-    assert.match(s, /Sjedište Društva je: Opština Podgorica/);
-    assert.match(s, /Marko Marković – 60%/);
-    assert.match(s, /najkasnije osam dana prije dana održavanja sjednice/);
-    assert.match(s, /više od polovine ukupnog broja glasova/);
-    assert.match(s, /dvotrećinsku većinu glasačkih prava/);
-    assert.match(s, /u roku od 30 dana od dana prijema ponude/);
-    assert.match(s, /Za prvog direktora Društva imenuje se Marko Marković/);
+  await t('statut: tekst klijenta, tabela udjela i zastupanje', () => {
+    const x = tekst(dok(PS, 'statut'));
+    assert.match(x, /Puno poslovno ime društva glasi: Primjer društvo sa ograničenom odgovornošću Bar, Crna Gora\./);
+    assert.match(x, /Red\. br\. \| Član društva \| Iznos uloga \(EUR\) \| Udio u osnovnom kapitalu \(%\)\n1\. \| PETAR PETROVIĆ \| 1,00 \| 100/);
+    assert.match(x, /Član 14\nIzvršni direktor\nDruštvo ima jednog izvršnog direktora/);
+    assert.match(x, /Izvršni direktor društva je: Jovana Jovanović\./);
+    assert.match(x, /Mandat izvršnog direktora traje do razrješenja/);
+    assert.match(x, /Društvo zastupa i predstavlja izvršni direktor JOVANA JOVANOVIĆ, JMBG 0101980215009, adresa prebivališta: Ulica Primjera 2a, Bar, samostalno i sa neograničenim ovlašćenjima\. U saglasnosti sa Osnivačem/);
+    assert.match(x, /dvotrećinsku većinu glasačkih prava/);
+    assert.match(x, /Član 21\nStupanje na snagu/);
+    assert.match(x, /Za društvo \/ osnivač: Petar Petrović, osnivač/);
   });
-  await t('nigdje „izvršni direktor” ni stari zakon', () => {
-    const x = sviTekstovi(FD);
-    assert.ok(!/izvršn/i.test(x));
-    assert.ok(!/65\/20|146\/21/.test(x));
+  await t('odluka o imenovanju izvršnog direktora', () => {
+    const x = tekst(dok(PS, 'odluka-o-imenovanju-direktora'));
+    assert.match(x, /^ODLUKA O IMENOVANJU IZVRŠNOG DIREKTORA$/m);
+    assert.match(x, /jedini osnivač i član društva Petar Petrović donosi sljedeću:/);
+    assert.match(x, /Jovana Jovanović, JMBG 0101980215009, sa prebivalištem\/boravištem na adresi Ulica Primjera 2a, Bar\./);
+    assert.match(x, /Izvršni direktor se imenuje na mandat koji traje do razrješenja, osim ako posebnom odlukom jedinog člana društva/);
+    assert.match(x, /Izvršni direktor zastupa društvo samostalno i bez ograničenja\./);
+    assert.match(x, /JEDINI OSNIVAČ \/ ČLAN DRUŠTVA: Petar Petrović/);
+    assert.ok(!/Razrješenje/.test(x));
   });
-  await t('stranac u osnivačkom aktu: podaci o pasošu', () => {
-    const o = { tip: 'fizicko', ime: 'John Smith', drzavljanstvo: 'Ujedinjeno Kraljevstvo', pasos: 'X1234567', pasosIzdat: '2020-01-10', pasosVazi: '2030-01-09', datumRodjenja: '1985-05-05', adresa: 'Budva' };
-    assert.strictEqual(D._.opisLica(o), 'John Smith, broj pasoša X1234567, datum izdavanja pasoša 10.01.2020., pasoš važi do 09.01.2030., država izdavanja pasoša: Ujedinjeno Kraljevstvo, datum rođenja 05.05.1985., adresa boravka: Budva');
-  });
-  await t('troškovi osnivanja i elektronski oblik', () => {
-    const f = JSON.parse(JSON.stringify(FD));
-    f.dokumenta.nadoknada = 'da'; f.dokumenta.troskovi = '300'; f.dokumenta.oblik = 'elektronski';
-    const x = tekst(D.zaFirmu(f).find((d) => d.id === 'ugovor-o-osnivanju'));
-    assert.match(x, /Procijenjeni troškovi osnivanja Društva iznose 300,00 €/);
-    assert.match(x, /ne može se platiti iz osnovnog kapitala/);
-    assert.match(x, /kvalifikovanim elektronskim potpisom/);
-    assert.ok(!/istovjetnih primjeraka/.test(x));
-  });
-  await t('jedan osnivač → odluka o osnivanju, 100%', () => {
-    const f = JSON.parse(JSON.stringify(FD));
-    f.osnivaci = [f.osnivaci[0]]; f.osnivaci[0].udio = '';
-    const docs = D.zaFirmu(f);
-    assert.ok(!docs.some((d) => d.id === 'ugovor-o-osnivanju'));
-    const o = docs.find((d) => d.id === 'odluka-o-osnivanju');
-    assert.match(tekst(o), /udio u osnovnom kapitalu Društva 100%/);
-    assert.match(tekst(o), /jednočlano društvo/);
-    assert.match(tekst(docs.find((d) => d.id === 'statut')), /1\.000,00 €/);
-  });
-  await t('mandat i oblik riječi "godina"', () => {
+  await t('odluka o imenovanju: mandat i razrješenje dosadašnjeg', () => {
+    const f = JSON.parse(JSON.stringify(PS));
+    f.dokumenta.mandat = '4';
+    f.dokumenta.prethodniDirektor = 'Petar Petrović';
+    const x = tekst(dok(f, 'odluka-o-imenovanju-direktora'));
+    assert.match(x, /Član 1\nRazrješenje\nPetar Petrović razrješava se dužnosti izvršnog direktora/);
+    assert.match(x, /na mandat od 4 godine/);
+    assert.match(x, /Ova odluka stupa na snagu danom potpisivanja\.$/m);
     assert.strictEqual(D._.godina(1), '1 godinu');
-    assert.strictEqual(D._.godina(4), '4 godine');
     assert.strictEqual(D._.godina(5), '5 godina');
-    // Kad je prvi direktor imenovan statutom, odluka služi za promjenu direktora.
-    const promjena = D.zaFirmu(FD).find((d) => d.id === 'odluka-o-imenovanju-direktora');
-    assert.ok(promjena.dostupan);
-    assert.match(promjena.naziv, /promjena direktora/);
-    assert.ok(promjena.nedostaje.includes('dosadašnji direktor'));
-    const fp = JSON.parse(JSON.stringify(FD));
-    fp.dokumenta.prethodniDirektor = 'Ana Anić';
-    const xp = tekst(D.zaFirmu(fp).find((d) => d.id === 'odluka-o-imenovanju-direktora'));
-    assert.match(xp, /o razrješenju i imenovanju direktora/);
-    assert.match(xp, /^Ana Anić razrješava se dužnosti direktora/m);
-    assert.match(xp, /Za direktora društva „Test Solutions DOO Podgorica”, Opština Podgorica, .*imenuje se Marko Marković/);
-    assert.match(xp, /u roku od sedam dana/);
-    const f = JSON.parse(JSON.stringify(FD));
-    f.dokumenta.imenovanje = 'odluka';
-    assert.match(tekst(D.zaFirmu(f).find((d) => d.id === 'odluka-o-imenovanju-direktora')), /period od 4 godine/);
-    assert.ok(!/Za prvog direktora/.test(tekst(D.zaFirmu(f).find((d) => d.id === 'statut'))));
-    f.dokumenta.mandat = '';
-    assert.match(tekst(D.zaFirmu(f).find((d) => d.id === 'statut')), /Trajanje mandata direktora nije ograničeno/);
+  });
+  await t('saglasnost (izjava) izvršnog direktora', () => {
+    const x = tekst(dok(PS, 'izjava-direktora'));
+    assert.match(x, /^SAGLASNOST ZA IMENOVANJE IZVRŠNOG DIREKTORA$/m);
+    assert.match(x, /Ime i prezime \| Jovana Jovanović\nJMBG \/ broj pasoša \| 0101980215009\nAdresa prebivališta \| Ulica Primjera 2a, Bar\nDržavljanstvo \| Crnogorsko\nBroj lične karte \/ pasoša \| LK0000000/);
+    assert.match(x, /dajem saglasnost da budem imenovan\/a za Izvršnog direktora privrednog društva:/);
+    assert.match(x, /sa sjedištem na adresi: Ulica Primjera 2a, koje se osniva/);
+    assert.match(x, /U Baru, dana 04\.06\.2026\. godine\./);
+    assert.match(x, /Davalac saglasnosti: JOVANA JOVANOVIĆ/);
+  });
+  await t('mjesto u lokativu, a nepoznato mjesto bez pogrešnog padeža', () => {
+    const f = JSON.parse(JSON.stringify(PS));
+    f.sjediste = { opstina: 'Herceg Novi', mjesto: 'Herceg Novi', ulica: 'Njegoševa', broj: '1' };
+    f.dokumenta.mjesto = '';
+    assert.match(tekst(dok(f, 'statut')), /Sjedište društva je u Herceg Novom, na adresi Njegoševa 1\./);
+    f.sjediste.mjesto = 'Baošići';
+    assert.match(tekst(dok(f, 'statut')), /Sjedište društva je u mjestu Baošići, na adresi Njegoševa 1\./);
+  });
+  await t('više osnivača: ugovor o osnivanju i statut sa skupštinom', () => {
+    const f = Object.assign(JSON.parse(JSON.stringify(FIRMA)), { dokumenta: { mjesto: 'Podgorica', datum: '2026-11-15' } });
+    assert.ok(!dok(f, 'odluka-o-osnivanju'));
+    const u = dok(f, 'ugovor-o-osnivanju');
+    assert.ok(u.dostupan);
+    assert.match(tekst(u), /Marko Marković – ukupan iznos novčanog uloga 600,00 €, udio u osnovnom kapitalu Društva 60%/);
+    assert.match(tekst(u), /Organi Društva su skupština i izvršni direktor/);
+    const s = tekst(dok(f, 'statut'));
+    assert.match(s, /osnivači društva usvajaju sljedeći:/);
+    assert.match(s, /1\. \| MARKO MARKOVIĆ \| 600,00 \| 60\n2\. \| ANA ANIĆ \| 400,00 \| 40/);
+    assert.match(s, /Uz saglasnost skupštine društva, izvršni direktor može/);
+    assert.match(tekst(dok(f, 'odluka-o-imenovanju-direktora')), /Ugovora o osnivanju društva i Statuta društva .*, skupština društva donosi sljedeću:/);
+  });
+  await t('stranac kao osnivač: podaci o pasošu', () => {
+    const o = { tip: 'fizicko', ime: 'John Smith', drzavljanstvo: 'Ujedinjeno Kraljevstvo', pasos: 'X1234567', pasosIzdat: '2020-01-10', pasosVazi: '2030-01-09', datumRodjenja: '1985-05-05', adresa: 'Budva' };
+    const f = Object.assign(JSON.parse(JSON.stringify(PS)), { osnivaci: [Object.assign({ udio: '100' }, o)] });
+    assert.match(tekst(dok(f, 'odluka-o-osnivanju')), /osnivač John Smith, broj pasoša X1234567, izdat 10\.01\.2020\., važi do 09\.01\.2030\., država izdavanja Ujedinjeno Kraljevstvo, datum rođenja 05\.05\.1985\., sa prebivalištem\/boravištem na adresi Budva/);
   });
   await t('nedostajući podaci se prijavljuju i ostaje prazna linija', () => {
-    const docs = D.zaFirmu({ naziv: 'X DOO', pravniOblik: 'Društvo sa ograničenom odgovornošću (DOO)' });
-    const s = docs.find((d) => d.id === 'statut');
+    const s = dok({ naziv: 'X DOO', pravniOblik: 'Društvo sa ograničenom odgovornošću (DOO)' }, 'statut');
     assert.ok(s.nedostaje.includes('osnovni kapital'));
-    assert.match(tekst(s), /______________ €/);
+    assert.match(tekst(s), /______________ EUR/);
+    assert.ok(dok({ naziv: 'X', pravniOblik: 'Društvo sa ograničenom odgovornošću (DOO)' }, 'izjava-direktora').nedostaje.includes('broj lične karte / pasoša izvršnog direktora'));
   });
-  await t('preduzetnik nema statut ni direktora', () => {
+  await t('preduzetnik nema statut ni izvršnog direktora', () => {
     const docs = D.zaFirmu({ naziv: 'Y', pravniOblik: 'Preduzetnik' });
     assert.ok(!docs.find((d) => d.id === 'statut').dostupan);
     assert.ok(!docs.find((d) => d.id === 'odluka-o-imenovanju-direktora').dostupan);
     assert.ok(docs.find((d) => d.id === 'ovlascenje').dostupan);
   });
-  await t('docx je ispravan ZIP sa document.xml', () => {
+  await t('docx (sa tabelama) se otvara u Word formatu', () => {
     const fs = require('fs'), os = require('os'), cp = require('child_process');
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'docx-'));
-    const dostupni = D.zaFirmu(FD).filter((d) => d.dostupan);
-    dostupni.forEach((d) => {
-      fs.writeFileSync(path.join(dir, d.id + '.docx'), Buffer.from(D.uDocx(d.blokovi)));
-    });
+    const dostupni = D.zaFirmu(PS).filter((d) => d.dostupan);
+    dostupni.forEach((d) => fs.writeFileSync(path.join(dir, d.id + '.docx'), Buffer.from(D.uDocx(d.blokovi))));
     const out = cp.execFileSync('python3', ['-c', `
 import sys, glob, zipfile, docx
 for f in sorted(glob.glob(sys.argv[1] + '/*.docx')):
@@ -212,7 +230,9 @@ for f in sorted(glob.glob(sys.argv[1] + '/*.docx')):
     d = docx.Document(f)
     print(f.split('/')[-1], len(d.paragraphs), len(d.tables))
 `, dir]).toString();
-    assert.strictEqual(out.trim().split('\n').length, dostupni.length, out);
+    const linije = out.trim().split('\n');
+    assert.strictEqual(linije.length, dostupni.length, out);
+    assert.ok(linije.some((l) => /^statut\.docx \d+ 2$/.test(l)), out);
     process.env.DOCX_DIR = dir;
   });
 

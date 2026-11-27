@@ -26,13 +26,17 @@ Otvorite `app/index.html` u pregledaču (dupli klik) – nije potreban server ni
 
 U prikazu firme, blok **Osnivačka dokumenta** pravi dokumente iz unesenih podataka:
 
+Odluka o osnivanju, statut, odluka o imenovanju izvršnog direktora i saglasnost izvršnog direktora
+prave se po tekstovima koje je dostavio klijent; promjenljivi podaci
+dolaze iz forme.
+
 | Dokument | Kada |
 |---|---|
-| Odluka o osnivanju | DOO sa jednim osnivačem |
-| Ugovor o osnivanju | DOO sa više osnivača (iznosi uloga i udjeli se računaju iz kapitala) |
-| Statut | DOO |
-| Odluka o imenovanju direktora | DOO: prvo imenovanje, ili promjena direktora (razrješenje dosadašnjeg i imenovanje novog) kad je prvi direktor imenovan statutom |
-| Izjava direktora o prihvatanju imenovanja | DOO |
+| Osnivački akt – Odluka o osnivanju | DOO sa jednim osnivačem (tekst klijenta) |
+| Ugovor o osnivanju | DOO sa više osnivača (opšti model; iznosi uloga i udjeli se računaju iz kapitala) |
+| Statut | DOO (tekst klijenta, tabela udjela za sve članove) |
+| Odluka o imenovanju izvršnog direktora | DOO (tekst klijenta); ako je upisan dosadašnji izvršni direktor, dodaje se razrješenje |
+| Saglasnost (izjava) za imenovanje izvršnog direktora | DOO (tekst klijenta) |
 | Ovlašćenje za zastupanje pred Poreskom upravom (IRMS) | kad zahtjev podnosi punomoćnik (npr. računovođa) |
 
 - **Pregled / štampa** otvara dokument spreman za štampu ili „Sačuvaj kao PDF”.
@@ -43,8 +47,10 @@ U prikazu firme, blok **Osnivačka dokumenta** pravi dokumente iz unesenih podat
 
 #### Usklađenost sa Zakonom o privrednim društvima
 
-Modeli i provjere usklađeni su sa Zakonom o privrednim društvima („Službeni list Crne Gore”,
-br. 90/25, 121/25 i 44/26), prema prečišćenom tekstu. Najvažnije:
+Provjere podataka u aplikaciji i ugovor o osnivanju (opšti model) usklađeni su sa Zakonom o
+privrednim društvima („Službeni list Crne Gore”, br. 90/25, 121/25 i 44/26), prema prečišćenom tekstu.
+Šabloni po tekstovima klijenta zadržavaju njegove formulacije (npr. „izvršni direktor”, direktor
+imenovan i u osnivačkom aktu); pravnik treba da potvrdi te izbore. Pravila koja aplikacija provjerava:
 
 | Pravilo | Član |
 |---|---|
@@ -61,7 +67,7 @@ br. 90/25, 121/25 i 44/26), prema prečišćenom tekstu. Najvažnije:
 | Organi: skupština i direktor; nadležnosti, sazivanje (8 dana), kvorum, većina | 405–420 |
 | Direktor: imenuje ga skupština ili statut pri osnivanju; mandat neograničen ako statut ne kaže drugačije; uslovi za imenovanje | 422–426 |
 
-> Ovo su **opšti modeli** za DOO sa novčanim ulozima, jednim direktorom i bez odbora direktora.
+> Šabloni su za DOO sa novčanim ulozima i jednim izvršnim direktorom.
 > Prije potpisivanja neka ih pregleda pravnik ili ovlašćeni računovođa. Za AD i ostale oblike
 > osnivački akt i statut se ne prave.
 

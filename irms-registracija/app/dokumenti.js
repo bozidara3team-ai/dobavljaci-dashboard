@@ -141,10 +141,6 @@
     return n + ' godina';
   }
 
-  function imenovanjeStatutom(f) {
-    return (get(f, 'dokumenta.imenovanje') || 'statut') === 'statut';
-  }
-
   function elektronski(f) {
     return get(f, 'dokumenta.oblik') === 'elektronski';
   }
@@ -175,11 +171,12 @@
       'sjediste.ulica': 'ulica sjedišta',
       sifraDjelatnosti: 'šifra djelatnosti',
       kapital: 'osnovni kapital',
-      'zastupnik.ime': 'ime direktora',
-      'zastupnik.jmbg': 'JMBG direktora',
-      'zastupnik.adresa': 'adresa direktora',
+      'zastupnik.ime': 'ime izvršnog direktora',
+      'zastupnik.jmbg': 'JMBG izvršnog direktora',
+      'zastupnik.adresa': 'adresa izvršnog direktora',
+      'zastupnik.drzavljanstvo': 'državljanstvo izvršnog direktora',
+      'zastupnik.licnaKarta': 'broj lične karte / pasoša izvršnog direktora',
       'dokumenta.datum': 'datum donošenja akata',
-      'dokumenta.prethodniDirektor': 'dosadašnji direktor',
       'punomocnik.ime': 'ime punomoćnika',
       'punomocnik.jmbg': 'JMBG punomoćnika'
     };
@@ -255,8 +252,8 @@
     troskoviTekst(f, jedan).forEach(function (x) { b.push({ t: 'p', x: x }); });
 
     b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Organi Društva su skupština i direktor.' + (jedan ? ' Osnivač, kao jedini član Društva, ima ovlašćenja skupštine.' : ' Skupštinu čine svi članovi Društva.') },
-      { t: 'p', x: 'Nadležnosti organa Društva, način sazivanja i rada skupštine, imenovanje i razrješenje direktora, zastupanje Društva i druga pitanja uređuju se Statutom Društva.' });
+      { t: 'p', x: 'Organi Društva su skupština i izvršni direktor.' + (jedan ? ' Osnivač, kao jedini član Društva, ima ovlašćenja skupštine.' : ' Skupštinu čine svi članovi Društva.') },
+      { t: 'p', x: 'Nadležnosti organa Društva, način sazivanja i rada skupštine, imenovanje i razrješenje izvršnog direktora, zastupanje Društva i druga pitanja uređuju se Statutom Društva.' });
     return b;
   }
 
@@ -280,23 +277,6 @@
     return b;
   }
 
-  function odlukaOsnivanje(f) {
-    var cl = clanovi(f);
-    var c = brojac();
-    var b = [
-      { t: 'p', x: 'Na osnovu člana 8 i člana 362 ' + ZAKON + ', osnivač ' + opisLica(cl[0] && cl[0].o) + ', donosi' },
-      { t: 'razmak' },
-      { t: 'naslov', x: 'ODLUKU' },
-      { t: 'podnaslov', x: 'o osnivanju društva sa ograničenom odgovornošću' },
-      { t: 'podnaslov', x: '„' + (f.naziv || PRAZNO) + '”' },
-      { t: 'clan', x: c() },
-      { t: 'p', x: 'Ovom odlukom osniva se jednočlano društvo sa ograničenom odgovornošću (u daljem tekstu: Društvo).' },
-      { t: 'p', x: 'Osnivač i jedini član Društva je: ' + opisLica(cl[0] && cl[0].o) + ' (u daljem tekstu: Osnivač).' }
-    ].concat(clanoviAkta(f, cl, c, true), zavrsneAkta(f, c, true, false));
-    b.push({ t: 'razmak' }, mjestoDatum(f), potpisiOsnivaca(cl));
-    return b;
-  }
-
   function ugovorOsnivanje(f) {
     var cl = clanovi(f);
     var c = brojac();
@@ -317,207 +297,352 @@
     return b;
   }
 
-  // ---------- statut (član 363) ----------
+  // ---------- šabloni po tekstovima koje je dostavio klijent ----------
+  // Tekst je preuzet iz dostavljenih dokumenata; promjenljivi podaci
+  // (ime, JMBG, adrese, poslovno ime, djelatnost, kapital, datum) dolaze iz forme.
+
+  var LOKATIV = {
+    'Andrijevica': 'Andrijevici', 'Bar': 'Baru', 'Berane': 'Beranama', 'Bijelo Polje': 'Bijelom Polju',
+    'Budva': 'Budvi', 'Cetinje': 'Cetinju', 'Danilovgrad': 'Danilovgradu', 'Gusinje': 'Gusinju',
+    'Herceg Novi': 'Herceg Novom', 'Kolašin': 'Kolašinu', 'Kotor': 'Kotoru', 'Mojkovac': 'Mojkovcu',
+    'Nikšić': 'Nikšiću', 'Petnjica': 'Petnjici', 'Plav': 'Plavu', 'Pljevlja': 'Pljevljima',
+    'Plužine': 'Plužinama', 'Podgorica': 'Podgorici', 'Rožaje': 'Rožajama', 'Šavnik': 'Šavniku',
+    'Tivat': 'Tivtu', 'Tuzi': 'Tuzima', 'Ulcinj': 'Ulcinju', 'Zeta': 'Zeti', 'Žabljak': 'Žabljaku',
+    'Golubovci': 'Golubovcima', 'Sutomore': 'Sutomoru', 'Petrovac': 'Petrovcu', 'Bečići': 'Bečićima',
+    'Igalo': 'Igalu', 'Risan': 'Risnu', 'Perast': 'Perastu'
+  };
+
+  /* "u Baru", "u Herceg Novom"; za mjesto koje nije u listi "u mjestu X" (bez pogrešne promjene po padežu). */
+  function uMjestu(mj) {
+    if (!ima(mj)) return 'u ' + PRAZNO;
+    var k = String(mj).trim();
+    return LOKATIV[k] ? 'u ' + LOKATIV[k] : 'u mjestu ' + k;
+  }
+
+  function mjestoSjedistaKlijent(f) {
+    return get(f, 'sjediste.mjesto') || get(f, 'sjediste.opstina');
+  }
+
+  function ulicaBroj(f) {
+    var s = f.sjediste || {};
+    var t = [s.ulica, s.broj].filter(ima).join(' ');
+    return t || PRAZNO;
+  }
+
+  function uMjestuDana(f, tacka) {
+    var mj = get(f, 'dokumenta.mjesto') || mjestoSjedistaKlijent(f);
+    var t = uMjestu(mj);
+    return { t: 'mjestoDatum', x: t.charAt(0).toUpperCase() + t.slice(1) + ', dana ' + datum(get(f, 'dokumenta.datum')) + (tacka ? '.' : '') };
+  }
+
+  /* Iznos bez oznake valute, npr. "1,00" (za tabele i "… EUR"). */
+  function iznos(n) {
+    return euro(n).replace(' €', '');
+  }
+
+  function velikaSlova(s) { return String(s || PRAZNO).toUpperCase(); }
+
+  function naslovFirme(f) {
+    return velikaSlova(f.skraceniNaziv || f.naziv);
+  }
+
+  /* Identifikacioni podatak osnivača / direktora (JMBG ili podaci o pasošu). */
+  function identifikacija(o) {
+    if (!o) return PRAZNO;
+    if (o.tip === 'pravno') return (jeStranoPravno(o) ? 'registarski broj ' : 'matični broj ') + (o.pib || PRAZNO);
+    if (jeStranac(o)) {
+      return 'broj pasoša ' + (o.pasos || PRAZNO) + ', izdat ' + datumKratko(o.pasosIzdat) + ', važi do ' + datumKratko(o.pasosVazi) +
+        ', država izdavanja ' + (o.drzavaPasosa || o.drzavljanstvo || PRAZNO) + ', datum rođenja ' + datumKratko(o.datumRodjenja);
+    }
+    return 'JMBG ' + (o.jmbg || PRAZNO);
+  }
+
+  function zakonKlijent() {
+    return 'Zakona o privrednim društvima Crne Gore („Službeni list Crne Gore”, br. 90/25, 121/25 i 44/26)';
+  }
+
+  function clanNaslov(c, naslov) {
+    return { t: 'clan', x: c(), naslov: naslov };
+  }
+
+  // ----- Osnivački akt: Odluka o osnivanju (jednočlano DOO) -----
+  function odlukaOsnivanje(f) {
+    var cl = clanovi(f);
+    var x = cl[0] || { o: {}, udio: 100, iznos: broj(f.kapital) };
+    var o = x.o;
+    var c = brojac();
+    var pravno = o.tip === 'pravno';
+    var b = [
+      { t: 'naslov', x: 'OSNIVAČKI AKT' },
+      { t: 'podnaslov', x: 'ODLUKA O OSNIVANJU DRUŠTVA SA OGRANIČENOM ODGOVORNOŠĆU' },
+      { t: 'podnaslov', x: naslovFirme(f) },
+      { t: 'p', x: 'Na osnovu ' + zakonKlijent() + ', osnivač ' + (o.ime || PRAZNO) + ', ' + identifikacija(o) + ', ' +
+        (pravno ? 'sa sjedištem na adresi ' : 'sa prebivalištem/boravištem na adresi ') + (o.adresa || PRAZNO) + ' donosi sljedeću:' },
+      { t: 'naslov', x: 'ODLUKU O OSNIVANJU' },
+      { t: 'podnaslov', x: 'DRUŠTVA SA OGRANIČENOM ODGOVORNOŠĆU' },
+
+      clanNaslov(c, 'Osnivanje društva'),
+      { t: 'p', x: 'Osniva se društvo sa ograničenom odgovornošću pod poslovnim imenom: ' + (f.naziv || PRAZNO) + '.' }
+    ];
+    if (ima(f.skraceniNaziv)) b.push({ t: 'p', x: 'Skraćeno poslovno ime društva glasi: ' + f.skraceniNaziv + '.' });
+    b.push({ t: 'p', x: 'Društvo se osniva kao jednočlano društvo sa ograničenom odgovornošću.' });
+
+    var redovi = pravno
+      ? [['Naziv', o.ime || PRAZNO]]
+        .concat(jeStranoPravno(o)
+          ? [['Država registracije', o.drzava], ['Registarski broj', o.pib || PRAZNO]]
+          : [['Matični broj', o.pib || PRAZNO]])
+        .concat([['Adresa sjedišta', o.adresa || PRAZNO]])
+      : [['Ime i prezime', o.ime || PRAZNO], ['Identifikacioni podatak', identifikacija(o).replace(/^JMBG /, '')],
+        ['Adresa', o.adresa || PRAZNO]];
+    redovi.push(['Iznos novčanog uloga', iznos(x.iznos) + ' EUR'], ['Udio u društvu', (x.udio != null ? procenat(x.udio) : PRAZNO)]);
+    b.push(clanNaslov(c, 'Osnivač društva'),
+      { t: 'p', x: 'Osnivač i jedini član društva je:' },
+      { t: 'tabela', redovi: redovi });
+
+    b.push(clanNaslov(c, 'Sjedište društva'),
+      { t: 'p', x: 'Sjedište društva je ' + uMjestu(mjestoSjedistaKlijent(f)) + ', na adresi ' + ulicaBroj(f) + '.' });
+
+    b.push(clanNaslov(c, 'Djelatnost društva'),
+      { t: 'p', x: 'Pretežna djelatnost društva je: ' + djelatnost(f) + '.' },
+      { t: 'p', x: 'Društvo može obavljati i druge djelatnosti koje nijesu zabranjene zakonom, uključujući djelatnosti za koje ispunjava posebne uslove propisane zakonom ili drugim propisom.' });
+
+    b.push(clanNaslov(c, 'Osnovni kapital'),
+      { t: 'p', x: 'Osnovni kapital društva iznosi ' + iznos(broj(f.kapital)) + ' EUR.' },
+      { t: 'p', x: 'Osnovni kapital se sastoji od novčanog uloga osnivača.' },
+      { t: 'p', x: 'Osnivač u osnovnom kapitalu društva ima udio od ' + (x.udio != null ? procenat(x.udio) : PRAZNO) + '.' });
+    if (get(f, 'dokumenta.nadoknada') === 'da' || ima(get(f, 'dokumenta.troskovi'))) {
+      troskoviTekst(f, true).forEach(function (t) { b.push({ t: 'p', x: t }); });
+    }
+
+    b.push(clanNaslov(c, 'Odgovornost'),
+      { t: 'p', x: 'Društvo posluje kao društvo sa ograničenom odgovornošću.' },
+      { t: 'p', x: 'Društvo stiče svojstvo pravnog lica danom registracije u Centralnom registru privrednih subjekata Crne Gore.' },
+      { t: 'p', x: 'Osnivač ne odgovara za obaveze društva, osim do visine preuzetog, odnosno unesenog uloga, u skladu sa zakonom.' });
+
+    b.push(clanNaslov(c, 'Organi društva'),
+      { t: 'p', x: 'Organi društva su skupština društva i izvršni direktor.' },
+      { t: 'p', x: 'Kod jednočlanog društva ovlašćenja skupštine vrši jedini član društva, a odluke se donose u pisanom obliku.' });
+
+    b.push(clanNaslov(c, 'Izvršni direktor'),
+      { t: 'p', x: 'Društvo ima jednog izvršnog direktora.' },
+      { t: 'p', x: 'Za izvršnog direktora društva imenuje se ' + (get(f, 'zastupnik.ime') || PRAZNO) + '.' },
+      { t: 'p', x: 'Izvršni direktor vodi poslovanje društva, organizuje rad društva, izvršava odluke jedinog člana društva, zastupa društvo i obavlja druge poslove u skladu sa zakonom, statutom društva i odlukama jedinog člana društva.' });
+
+    b.push(clanNaslov(c, 'Zastupanje društva'),
+      { t: 'p', x: 'Društvo zastupa izvršni direktor, samostalno i bez ograničenja, u skladu sa statutom društva i zakonom.' },
+      { t: 'p', x: 'Ako se imenuju druga lica ovlašćena za zastupanje, njihov način zastupanja i eventualna ograničenja uređuju se posebnom odlukom jedinog člana društva i registruju kod nadležnog organa kada je to propisano zakonom.' });
+
+    b.push(clanNaslov(c, 'Statut društva'),
+      { t: 'p', x: 'Osnivač društva usvaja statut društva kojim se bliže uređuju poslovno ime, sjedište, djelatnost, osnovni kapital, udjeli, organi društva, način odlučivanja, zastupanje, izmjene statuta i druga pitanja od značaja za poslovanje društva.' });
+
+    b.push(clanNaslov(c, 'Trajanje društva'),
+      { t: 'p', x: 'Društvo se osniva na neodređeno vrijeme.' });
+
+    b.push(clanNaslov(c, 'Završne odredbe'),
+      { t: 'p', x: 'Ova odluka predstavlja osnivački akt društva i stupa na snagu danom potpisivanja, a primjenjuje se od dana registracije društva u Centralnom registru privrednih subjekata Crne Gore.' },
+      { t: 'p', x: 'Na sva pitanja koja nijesu uređena ovom odlukom primjenjuju se odredbe Zakona o privrednim društvima Crne Gore i drugih važećih propisa.' });
+
+    b.push(uMjestuDana(f), { t: 'potpisi', lista: [{ uloga: 'OSNIVAČ:', ime: pravno ? (o.ime || PRAZNO) + ', zastupnik ' + (o.zastupnik || PRAZNO) : (o.ime || PRAZNO) }] });
+    return b;
+  }
+
+  // ----- Statut -----
   function statut(f) {
     var cl = clanovi(f);
     var jedan = cl.length <= 1;
     var m = mandat(f);
+    var z = f.zastupnik || {};
     var c = brojac();
-    var b = [];
-    b.push({ t: 'p', x: 'Na osnovu člana 8 i člana 363 ' + ZAKON + ', ' + (jedan
-      ? 'osnivač ' + opisLica(cl[0] && cl[0].o) + ', donosi'
-      : 'osnivači društva sa ograničenom odgovornošću „' + (f.naziv || PRAZNO) + '” donose') });
-    b.push({ t: 'razmak' }, { t: 'naslov', x: 'STATUT' },
-      { t: 'podnaslov', x: 'društva sa ograničenom odgovornošću' },
-      { t: 'podnaslov', x: '„' + (f.naziv || PRAZNO) + '”' });
+    var b = [
+      { t: 'naslov', x: 'STATUT' },
+      { t: 'podnaslov', x: naslovFirme(f) },
+      { t: 'p', x: 'Na osnovu ' + zakonKlijent() + (jedan
+        ? ' i odluke o osnivanju društva, osnivač društva usvaja sljedeći:'
+        : ' i ugovora o osnivanju društva, osnivači društva usvajaju sljedeći:') },
+      { t: 'podnaslov', x: 'STATUT DRUŠTVA SA OGRANIČENOM ODGOVORNOŠĆU' },
 
-    b.push({ t: 'podnaslov', x: 'I. OSNOVNE ODREDBE' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Ovim statutom uređuju se poslovno ime, sjedište i pretežna djelatnost društva sa ograničenom odgovornošću „' + (f.naziv || PRAZNO) +
-        '” (u daljem tekstu: Društvo), osnovni kapital i udjeli, organi Društva i njihove nadležnosti, način sazivanja sjednice skupštine i donošenja odluka, imenovanje i razrješenje direktora, zastupanje, raspodjela dobiti, postupak izmjena statuta i druga pitanja od značaja za Društvo.' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Poslovno ime Društva je: ' + (f.naziv || PRAZNO) + '.' + (ima(f.skraceniNaziv) ? ' Skraćeno poslovno ime Društva je: ' + f.skraceniNaziv + '.' : '') },
-      { t: 'p', x: sjedisteTekst(f) },
-      { t: 'p', x: 'Adresa Društva za prijem elektronske pošte je: ' + (f.email || PRAZNO) + '.' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Društvo je pravno lice i za svoje obaveze odgovara cjelokupnom svojom imovinom. Članovi Društva ne odgovaraju za obaveze Društva, osim u slučajevima propisanim zakonom.' },
-      { t: 'p', x: 'Društvo nije dužno da koristi pečat. Ako Društvo obavlja djelatnost elektronskim putem, koristi elektronski pečat u skladu sa zakonom.' });
+      clanNaslov(c, 'Opšte odredbe'),
+      { t: 'p', x: 'Ovim statutom uređuju se poslovno ime, sjedište i pretežna djelatnost društva, iznos osnovnog kapitala, udjeli članova društva, način sazivanja i odlučivanja skupštine društva, organi upravljanja, zastupanje društva, postupak izmjena i dopuna statuta, kao i druga pitanja od značaja za poslovanje društva.' },
 
-    b.push({ t: 'podnaslov', x: 'II. DJELATNOST DRUŠTVA' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Pretežna djelatnost Društva, u skladu sa propisom kojim se uređuje klasifikacija djelatnosti, je: ' + djelatnost(f) + '.' },
-      { t: 'p', x: 'Pored pretežne djelatnosti, Društvo može obavljati i druge djelatnosti u skladu sa zakonom.' });
+      clanNaslov(c, 'Pravna forma i odgovornost'),
+      { t: 'p', x: 'Društvo posluje kao društvo sa ograničenom odgovornošću.' },
+      { t: 'p', x: 'Društvo stiče svojstvo pravnog lica danom registracije u Centralnom registru privrednih subjekata Crne Gore.' },
+      { t: 'p', x: 'Članovi društva ne odgovaraju za obaveze društva, osim do visine preuzetih, odnosno unesenih uloga, u skladu sa zakonom.' },
 
-    b.push({ t: 'podnaslov', x: 'III. OSNOVNI KAPITAL I UDJELI' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Osnovni kapital Društva iznosi ' + euro(broj(f.kapital)) + '.' },
-      { t: 'p', x: 'Udjeli članova Društva u ukupnom osnovnom kapitalu su:' });
-    cl.forEach(function (x, i) {
-      b.push({ t: 'stavka', x: (i + 1) + ') ' + (x.o.ime || PRAZNO) + ' – ' + (x.udio != null ? procenat(x.udio) : PRAZNO) +
-        ', nominalne vrijednosti ' + euro(x.iznos) + ';' });
-    });
-    b.push({ t: 'p', x: 'Član Društva sva prava ostvaruje srazmjerno svom udjelu u Društvu.' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'O povećanju i smanjenju osnovnog kapitala odlučuje skupština Društva. Prilikom povećanja osnovnog kapitala novim ulozima, članovi Društva imaju pravo prečeg upisa udjela srazmjerno svojim udjelima.' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Prenos udjela između članova Društva je slobodan.' },
-      { t: 'p', x: 'Član Društva koji namjerava da prenese udio trećem licu dužan je da ga prethodno ponudi ostalim članovima Društva. Ponuda se daje u pisanom obliku i sadrži bitne elemente ugovora o prenosu udjela, adresu na koju se upućuje prihvat ponude i rok za zaključivanje ugovora.' },
-      { t: 'p', x: 'Član koji koristi pravo preče kupovine dužan je da u pisanom obliku obavijesti člana koji prenosi udio o prihvatanju ponude u cjelosti, u roku od 30 dana od dana prijema ponude. Ako ponudu prihvati više članova, a ne postoji drugačiji sporazum, udio se dijeli među njima srazmjerno njihovim udjelima.' },
-      { t: 'p', x: 'Ako nijedan član ne prihvati ponudu u roku iz stava 3 ovog člana, udio se može prenijeti trećem licu pod uslovima koji nijesu povoljniji od uslova ponuđenih članovima Društva.' },
-      { t: 'p', x: 'Udio se prenosi na osnovu ugovora zaključenog u pisanom obliku, uz ovjeru potpisa u skladu sa zakonom kojim se uređuje ovjera potpisa, rukopisa i prepisa.' },
-      { t: 'p', x: 'U slučaju smrti člana Društva, udio se prenosi na nasljednike u skladu sa zakonom.' });
+      clanNaslov(c, 'Poslovno ime'),
+      { t: 'p', x: 'Puno poslovno ime društva glasi: ' + (f.naziv || PRAZNO) + '.' }
+    ];
+    if (ima(f.skraceniNaziv)) b.push({ t: 'p', x: 'Skraćeno poslovno ime društva glasi: ' + f.skraceniNaziv + '.' });
+    b.push({ t: 'p', x: 'Društvo može u poslovanju koristiti i znak, logotip, memorandum i druge elemente vizuelnog identiteta, u skladu sa zakonom i odlukama nadležnih organa društva.' });
 
-    b.push({ t: 'podnaslov', x: 'IV. ORGANI DRUŠTVA' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Organi Društva su skupština i direktor. Društvo ima jednog direktora i nema odbor direktora.' },
-      { t: 'p', x: 'Ako Društvo ima jednog člana, taj član ima ovlašćenja skupštine Društva, odluke donosi u pisanom obliku i vodi evidenciju donesenih odluka.' });
+    b.push(clanNaslov(c, 'Sjedište'),
+      { t: 'p', x: 'Sjedište društva je ' + uMjestu(mjestoSjedistaKlijent(f)) + ', na adresi ' + ulicaBroj(f) + '.' },
+      { t: 'p', x: 'O promjeni adrese sjedišta odlučuje skupština društva, u skladu sa zakonom i ovim statutom.' });
 
-    b.push({ t: 'podnaslov', x: '1. Skupština' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Skupštinu Društva čine svi članovi Društva. Direktor obavezno prisustvuje sjednici skupštine.' },
-      { t: 'p', x: 'Skupština Društva:' });
-    ['vrši izmjene i dopune, odnosno donosi novi statut Društva i sačinjava prečišćeni tekst statuta;',
-      'imenuje i razrješava direktora i utvrđuje njegovu zaradu i naknade;',
-      'imenuje i razrješava revizora;',
-      'imenuje i razrješava likvidatora;',
-      'donosi odluku o dobrovoljnoj likvidaciji Društva ili podnošenju predloga za pokretanje stečajnog postupka;',
-      'usvaja finansijske iskaze, kao i izvještaje revizora ako su finansijski iskazi bili predmet revizije;',
-      'donosi odluku o raspodjeli dobiti i načinu pokrića gubitaka;',
-      'donosi odluku o povećanju ili smanjenju osnovnog kapitala;',
-      'donosi odluku o statusnim promjenama i promjenama pravnog oblika;',
-      'donosi odluku o sticanju sopstvenih udjela;',
-      'donosi odluku o zahtjevu za istupanje člana iz Društva;',
-      'donosi odluku o pokretanju postupka i davanju punomoćja za zastupanje Društva u sporu sa prokuristom, direktorom ili članom Društva;',
-      'donosi poslovnik o radu;',
-      'odlučuje o drugim pitanjima u skladu sa zakonom i ovim statutom.'
-    ].forEach(function (s, i) { b.push({ t: 'stavka', x: (i + 1) + ') ' + s }); });
-    b.push({ t: 'p', x: 'Skupština može direktoru davati obavezujuća uputstva.' });
+    b.push(clanNaslov(c, 'Djelatnost'),
+      { t: 'p', x: 'Pretežna djelatnost društva je: ' + djelatnost(f) + '.' },
+      { t: 'p', x: 'Društvo može obavljati i druge djelatnosti koje nijesu zabranjene zakonom, uključujući djelatnosti za koje ispunjava posebne uslove propisane zakonom ili drugim propisom.' });
 
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Sjednicu skupštine saziva direktor. Svaki član Društva može direktoru podnijeti pisani zahtjev za sazivanje sjednice, sa predlogom dnevnog reda i predlogom odluka sa obrazloženjem. Ako direktor ne sazove sjednicu u roku od deset dana od dana prijema zahtjeva, sjednicu može sazvati član koji je podnio zahtjev.' },
-      { t: 'p', x: 'Poziv za sjednicu sadrži datum slanja poziva, vrijeme i mjesto održavanja sjednice, dnevni red sa naznakom tačaka o kojima skupština donosi odluku i obavještenje o tome gdje se može izvršiti uvid u materijale za sjednicu.' },
-      { t: 'p', x: 'Poziv se upućuje svakom članu u pisanom obliku, preporučenom pošiljkom na adresu iz evidencije članova Društva ili elektronskom poštom članu koji je dao pisanu saglasnost za takav način dostavljanja, najkasnije osam dana prije dana održavanja sjednice. Materijali za sjednicu stavljaju se na raspolaganje istovremeno sa slanjem poziva.' },
-      { t: 'p', x: 'Ako su na sjednici prisutni, lično ili preko punomoćnika, svi članovi Društva, skupština može donijeti odluku i bez poštovanja pravila o sazivanju sjednice, ako se nijedan član ne protivi takvom načinu odlučivanja.' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Svaki član Društva ima pravo glasa srazmjerno svom udjelu u osnovnom kapitalu.' },
-      { t: 'p', x: 'Kvorum za rad sjednice skupštine čine članovi koji posjeduju udjele koji daju više od polovine ukupnog broja glasova. Ako se sjednica ne održi zbog nedostatka kvoruma, ponovljena sjednica sa istim dnevnim redom održava se najranije pet, a najkasnije 15 dana od dana neodržane sjednice.' },
-      { t: 'p', x: 'Skupština donosi odluke većinom glasova prisutnih članova koji imaju pravo glasa po određenom pitanju, osim ako zakonom ili ovim statutom nije predviđena veća većina. Glasanje je javno.' },
-      { t: 'p', x: 'Članovi Društva mogu glasati i pisanim putem, bez prisustva sjednici, kao i učestvovati u radu skupštine korišćenjem elektronskih oblika komunikacije, u skladu sa zakonom.' },
-      { t: 'p', x: 'O radu sjednice vodi se zapisnik u skladu sa zakonom.' });
+    b.push(clanNaslov(c, 'Osnovni kapital'),
+      { t: 'p', x: 'Osnovni kapital društva iznosi ' + iznos(broj(f.kapital)) + ' EUR.' },
+      { t: 'p', x: 'Osnovni kapital se sastoji od novčanog uloga članova društva. Ako postoje nenovčani ulozi, njihova vrsta, opis i procijenjena novčana vrijednost utvrđuju se osnivačkim aktom i evidencijama društva, u skladu sa zakonom.' },
+      { t: 'p', x: 'Povećanje i smanjenje osnovnog kapitala vrši se u skladu sa zakonom, osnivačkim aktom i ovim statutom.' });
 
-    b.push({ t: 'podnaslov', x: '2. Direktor' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Direktora imenuje i razrješava skupština Društva. Pravo na predlaganje kandidata za direktora ima svaki član Društva.' },
+    b.push(clanNaslov(c, 'Udjeli članova društva'),
+      { t: 'p', x: 'Udjeli članova društva u ukupnom osnovnom kapitalu izraženi su u procentima kako slijedi:' },
+      { t: 'tabela', zaglavlje: ['Red. br.', 'Član društva', 'Iznos uloga (EUR)', 'Udio u osnovnom kapitalu (%)'],
+        redovi: (cl.length ? cl : [{ o: {}, udio: null, iznos: null }]).map(function (x, i) {
+          return [(i + 1) + '.', velikaSlova(x.o.ime), iznos(x.iznos), x.udio != null ? procenat(x.udio).replace('%', '') : PRAZNO];
+        }) });
+
+    b.push(clanNaslov(c, 'Prava i obaveze članova društva'),
+      { t: 'p', x: 'Članovi društva imaju prava i obaveze utvrđene zakonom, osnivačkim aktom i ovim statutom.' },
+      { t: 'p', x: 'Članovi društva imaju pravo na učešće u radu skupštine, pravo glasa, pravo na informisanje o poslovanju društva, pravo na učešće u raspodjeli dobiti i pravo na raspolaganje udjelom, u skladu sa zakonom i ovim statutom.' },
+      { t: 'p', x: 'Pravo glasa se ostvaruje srazmjerno udjelu člana u osnovnom kapitalu, osim ako zakonom nije drugačije propisano.' });
+
+    b.push(clanNaslov(c, 'Prenos udjela'),
+      { t: 'p', x: 'Prenos udjela između članova društva je slobodan, osim ako članovi društva posebnom odlukom ili ugovorom ne urede drugačije, u granicama zakona.' },
+      { t: 'p', x: 'U slučaju prenosa udjela trećem licu, ostali članovi društva imaju pravo preče kupovine, ukoliko zakonom ili ovim statutom nije drugačije propisano.' },
+      { t: 'p', x: 'Postupak prenosa udjela sprovodi se u pisanom obliku i registruje kod nadležnog organa kada je to zakonom propisano.' });
+
+    b.push(clanNaslov(c, 'Organi društva'),
+      { t: 'p', x: 'Organi društva su skupština društva i izvršni direktor.' },
+      { t: 'p', x: 'Društvo može imati i druge organe ili funkcije ako to odluči skupština društva, u skladu sa zakonom i ovim statutom.' });
+
+    b.push(clanNaslov(c, 'Skupština društva'),
+      { t: 'p', x: 'Skupštinu društva čine svi članovi društva.' },
+      { t: 'p', x: 'Ako društvo ima jednog člana, ovlašćenja skupštine vrši jedini član društva, a odluke se donose u pisanom obliku.' },
+      { t: 'p', x: 'Skupština odlučuje o pitanjima iz svoje nadležnosti utvrđenim zakonom i ovim statutom, uključujući usvajanje izmjena statuta, promjene osnovnog kapitala, raspodjelu dobiti, imenovanje i razrješenje izvršnog direktora, statusne promjene i prestanak društva.' });
+
+    b.push(clanNaslov(c, 'Sazivanje i održavanje skupštine'),
+      { t: 'p', x: 'Sjednicu skupštine saziva izvršni direktor, član društva ili drugo lice ovlašćeno zakonom ili ovim statutom.' },
+      { t: 'p', x: 'Poziv za sjednicu dostavlja se članovima društva u pisanom ili elektronskom obliku, na adresu koju su članovi dostavili društvu, najkasnije osam dana prije dana održavanja sjednice, osim ako svi članovi pristanu na kraći rok.' },
+      { t: 'p', x: 'Poziv sadrži mjesto i vrijeme održavanja sjednice, dnevni red i materijale potrebne za odlučivanje.' },
+      { t: 'p', x: 'Skupština se može održati i bez formalnog sazivanja ako su prisutni svi članovi društva i ako se nijedan član ne protivi održavanju sjednice i odlučivanju.' });
+
+    b.push(clanNaslov(c, 'Odlučivanje skupštine'),
+      { t: 'p', x: 'Skupština donosi odluke običnom većinom glasova prisutnih članova, osim kada je zakonom, osnivačkim aktom ili ovim statutom propisana druga većina.' },
+      { t: 'p', x: 'Odluke o izmjenama i dopunama statuta, povećanju ili smanjenju osnovnog kapitala, statusnim promjenama i prestanku društva donose se većinom propisanom zakonom, odnosno ovim statutom.' },
+      { t: 'p', x: 'O radu skupštine vodi se zapisnik, osim kod jednočlanog društva, gdje se odluke jedinog člana unose u knjigu odluka ili posebnu evidenciju odluka društva.' });
+
+    b.push(clanNaslov(c, 'Izvršni direktor'),
+      { t: 'p', x: 'Društvo ima jednog izvršnog direktora, koga imenuje i razrješava skupština društva.' },
+      { t: 'p', x: 'Izvršni direktor društva je: ' + (z.ime || PRAZNO) + '.' },
       { t: 'p', x: m
-        ? 'Direktor se imenuje na period od ' + godina(m) + '. Po isteku mandata direktor može biti ponovo imenovan.'
-        : 'Trajanje mandata direktora nije ograničeno.' },
-      { t: 'p', x: 'Skupština može razriješiti direktora i prije isteka mandata, bez obaveze navođenja razloga.' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Direktor mora biti poslovno sposobno fizičko lice. Direktor ne može biti lice kod kojeg postoje smetnje za imenovanje propisane zakonom.' },
-      { t: 'p', x: 'Ako za vrijeme trajanja mandata prestane da ispunjava uslove za imenovanje, direktor je dužan da o tome bez odlaganja obavijesti članove Društva.' });
-    b.push({ t: 'clan', x: c() }, { t: 'p', x: 'Direktor:' });
-    ['zastupa Društvo prema trećim licima u skladu sa ovim statutom i odlukama skupštine;',
-      'vodi poslove Društva u skladu sa ovim statutom i odlukama skupštine;',
-      'odlučuje o unutrašnjoj organizaciji Društva;',
-      'vrši unutrašnji nadzor nad obavljanjem djelatnosti Društva;',
-      'saziva sjednice skupštine i utvrđuje predlog dnevnog reda sa predlozima odluka;',
-      'izvršava odluke skupštine;',
-      'daje i opoziva prokuru;',
-      'izvještava skupštinu u skladu sa zakonom i ovim statutom;',
-      'vrši druge poslove u skladu sa zakonom i ovim statutom.'
-    ].forEach(function (s, i) { b.push({ t: 'stavka', x: (i + 1) + ') ' + s }); });
-    b.push({ t: 'p', x: 'Za pitanja koja nijesu u nadležnosti skupštine, pretpostavlja se nadležnost direktora.' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Društvo zastupa direktor, samostalno i bez ograničenja.' },
-      { t: 'p', x: 'Direktor ne može zastupati Društvo niti izdati punomoćje u sporu u kojem je suprotna strana on ili sa njim povezano lice; u tom slučaju punomoćje izdaje skupština.' },
-      { t: 'p', x: 'Direktor ima pravo na zaradu i naknade u skladu sa odlukom skupštine.' });
+        ? 'Mandat izvršnog direktora traje ' + godina(m).replace('godinu', 'godinu dana') + ', osim ako odlukom o imenovanju nije drugačije određeno.'
+        : 'Mandat izvršnog direktora traje do razrješenja, osim ako odlukom o imenovanju nije drugačije određeno.' },
+      { t: 'p', x: 'Izvršni direktor vodi poslovanje društva, organizuje rad društva, izvršava odluke skupštine, zastupa društvo i obavlja druge poslove u skladu sa zakonom, ovim statutom i odlukama skupštine.' });
 
-    b.push({ t: 'podnaslov', x: 'V. DOBIT I GUBITAK' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Skupština odlučuje o raspodjeli dobiti i načinu pokrića gubitaka, nakon usvajanja finansijskih iskaza. Dobit namijenjena isplati članovima raspoređuje se srazmjerno njihovim udjelima, u skladu sa zakonom.' });
+    b.push(clanNaslov(c, 'Zastupanje društva'),
+      { t: 'p', x: 'Društvo zastupa i predstavlja izvršni direktor ' + velikaSlova(z.ime) + ', JMBG ' + (z.jmbg || PRAZNO) +
+        ', adresa prebivališta: ' + (z.adresa || PRAZNO) + ', samostalno i sa neograničenim ovlašćenjima. ' +
+        (jedan ? 'U saglasnosti sa Osnivačem, ' : 'Uz saglasnost skupštine društva, ') +
+        'izvršni direktor može za zastupanje i predstavljanje društva ovlastiti i drugu osobu.' },
+      { t: 'p', x: (jedan ? 'Osnivač' : 'Skupština društva') + ' može imenovati i ovlašćene zastupnike Društva, i odrediti njihova ovlašćenja i ograničenja za zastupanje.' },
+      { t: 'p', x: 'Ako je imenovano više lica ovlašćenih za zastupanje, način zastupanja određuje se odlukom o imenovanju i registruje kod nadležnog organa.' },
+      { t: 'p', x: 'Ograničenja ovlašćenja za zastupanje proizvode dejstvo prema trećim licima u skladu sa zakonom i pravilima registracije.' });
 
-    b.push({ t: 'podnaslov', x: 'VI. INFORMISANJE I EVIDENCIJE' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Član Društva ima pravo na informisanje u skladu sa zakonom.' },
-      { t: 'p', x: 'Društvo trajno čuva osnivački akt, statut i sve njegove izmjene, druge opšte akte, knjigu zapisnika i odluke skupštine, i vodi evidencije propisane zakonom, u svom sjedištu.' });
+    b.push(clanNaslov(c, 'Dobit i pokriće gubitka'),
+      { t: 'p', x: 'Dobit društva utvrđuje se godišnjim finansijskim iskazima i raspoređuje odlukom skupštine društva, u skladu sa zakonom.' },
+      { t: 'p', x: 'Članovi društva učestvuju u raspodjeli dobiti srazmjerno svojim udjelima, osim ako skupština društva jednoglasno ne odluči drugačije, u skladu sa zakonom.' },
+      { t: 'p', x: 'Gubitak društva pokriva se u skladu sa zakonom, odlukom skupštine društva i raspoloživim sredstvima društva.' });
 
-    b.push({ t: 'podnaslov', x: 'VII. PRESTANAK DRUŠTVA' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Društvo prestaje u slučajevima i po postupku propisanom zakonom.' });
+    b.push(clanNaslov(c, 'Poslovne knjige, evidencije i akti društva'),
+      { t: 'p', x: 'Društvo vodi poslovne knjige i evidencije u skladu sa zakonom.' },
+      { t: 'p', x: 'Društvo čuva osnivački akt, statut, odluke organa društva, finansijske iskaze, evidenciju članova društva i drugu dokumentaciju koju je dužno da čuva u skladu sa zakonom.' },
+      { t: 'p', x: 'Članovi društva imaju pravo uvida u akte i dokumentaciju društva u skladu sa zakonom i ovim statutom.' });
 
-    b.push({ t: 'podnaslov', x: 'VIII. PRELAZNE I ZAVRŠNE ODREDBE' });
-    if (imenovanjeStatutom(f)) {
-      b.push({ t: 'clan', x: c() },
-        { t: 'p', x: 'Za prvog direktora Društva imenuje se ' + opisDirektora(f.zastupnik) +
-          (m ? ', na period od ' + godina(m) + '.' : ', bez ograničenja trajanja mandata.') });
-    }
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Statut se mijenja odlukom članova Društva koji posjeduju udjele koji predstavljaju dvotrećinsku većinu glasačkih prava. Na isti način odlučuje se o promjeni poslovnog imena, sjedišta i pretežne djelatnosti Društva.' },
-      { t: 'p', x: 'Nakon svake izmjene statuta sačinjava se prečišćeni tekst, koji se zajedno sa izmjenama registruje u CRPS.' },
-      { t: 'p', x: 'Na pitanja koja nijesu uređena ovim statutom neposredno se primjenjuju odredbe zakona.' });
-    b.push({ t: 'clan', x: c() },
-      { t: 'p', x: 'Ovaj statut stupa na snagu danom donošenja, a primjenjuje se od dana registracije Društva u Centralnom registru privrednih subjekata.' },
-      { t: 'razmak' }, mjestoDatum(f), potpisiOsnivaca(cl));
+    b.push(clanNaslov(c, 'Izmjene i dopune statuta'),
+      { t: 'p', x: 'Izmjene i dopune ovog statuta donosi skupština društva odlukom članova koji posjeduju udjele koji predstavljaju dvotrećinsku većinu glasačkih prava, osim ako je za pojedina pitanja zakonom propisana druga većina.' },
+      { t: 'p', x: 'Ako društvo ima jednog člana, izmjene i dopune statuta donosi jedini član društva u pisanom obliku.' },
+      { t: 'p', x: 'Izmjene i dopune statuta registruju se kod nadležnog organa kada je to propisano zakonom.' });
+
+    b.push(clanNaslov(c, 'Prestanak društva'),
+      { t: 'p', x: 'Društvo prestaje u slučajevima i na način propisan zakonom, odlukom skupštine društva, statusnom promjenom, likvidacijom, stečajem ili drugim zakonom predviđenim osnovom.' },
+      { t: 'p', x: 'U slučaju prestanka društva sprovodi se postupak propisan zakonom.' });
+
+    b.push(clanNaslov(c, 'Primjena zakona'),
+      { t: 'p', x: 'Na sva pitanja koja nijesu uređena ovim statutom neposredno se primjenjuju odredbe Zakona o privrednim društvima Crne Gore i drugih važećih propisa.' });
+
+    b.push(clanNaslov(c, 'Stupanje na snagu'),
+      { t: 'p', x: 'Ovaj statut stupa na snagu danom usvajanja, a primjenjuje se od dana registracije društva u Centralnom registru privrednih subjekata Crne Gore.' });
+
+    b.push(uMjestuDana(f), {
+      t: 'potpisi',
+      lista: (cl.length ? cl : [{ o: {} }]).map(function (x) {
+        return { uloga: jedan ? 'Za društvo / osnivač:' : 'Osnivač:', ime: (x.o.ime || PRAZNO) + ', osnivač' };
+      })
+    });
     return b;
   }
 
-  // ---------- direktor (član 407, 422-426) ----------
-  /*
-   * Odluka o imenovanju direktora (član 407 stav 1 tačka 2, čl. 422-425).
-   * Ako je prvi direktor imenovan statutom (član 422 stav 4), ista odluka
-   * služi za promjenu direktora: razrješava dosadašnjeg i imenuje novog.
-   */
+  // ----- Odluka o imenovanju izvršnog direktora -----
   function odlukaDirektor(f) {
     var cl = clanovi(f);
     var jedan = cl.length <= 1;
     var m = mandat(f);
-    var promjena = imenovanjeStatutom(f);
+    var z = f.zastupnik || {};
     var dosadasnji = get(f, 'dokumenta.prethodniDirektor');
-    var donosilac = jedan
-      ? 'jedini član društva ' + ((cl[0] && cl[0].o.ime) || PRAZNO) + ', koji ima ovlašćenja skupštine Društva,'
-      : 'skupština Društva';
-    var firma = '„' + (f.naziv || PRAZNO) + '”, Opština ' + (get(f, 'sjediste.opstina') || PRAZNO) + ', adresa sjedišta: ' + adresaSjedista(f);
-    var r = 0;
-    var rimski = ['I', 'II', 'III', 'IV', 'V', 'VI'];
-    var tacka = function () { return { t: 'clan', x: rimski[r++] }; };
-
+    var organ = jedan ? 'jedinog člana društva' : 'skupštine društva';
+    var c = brojac();
     var b = [
-      { t: 'p', x: 'Na osnovu člana 407 stav 1 tačka 2' + (promjena ? ', člana 422 i člana 425' : ' i člana 422') + ' ' + ZAKON +
-        ' i Statuta društva „' + (f.naziv || PRAZNO) + '”, ' + donosilac + ' dana ' + datum(get(f, 'dokumenta.datum')) + ' donosi' },
-      { t: 'razmak' },
+      { t: 'naslov', x: 'ODLUKA O IMENOVANJU IZVRŠNOG DIREKTORA' },
+      { t: 'podnaslov', x: naslovFirme(f) },
+      { t: 'p', x: 'Na osnovu ' + zakonKlijent() + ', ' + (jedan ? 'Odluke' : 'Ugovora') + ' o osnivanju društva i Statuta društva ' + (f.naziv || PRAZNO) + ', ' +
+        (jedan ? 'jedini osnivač i član društva ' + ((cl[0] && cl[0].o.ime) || PRAZNO) : 'skupština društva') + ' donosi sljedeću:' },
       { t: 'naslov', x: 'ODLUKU' },
-      { t: 'podnaslov', x: promjena ? 'o razrješenju i imenovanju direktora' : 'o imenovanju direktora' }
+      { t: 'podnaslov', x: 'O IMENOVANJU IZVRŠNOG DIREKTORA' }
     ];
-    if (promjena) {
-      b.push(tacka(), { t: 'p', x: (dosadasnji || PRAZNO) + ' razrješava se dužnosti direktora društva ' + firma + ', danom donošenja ove odluke.' });
+    if (ima(dosadasnji)) {
+      b.push(clanNaslov(c, 'Razrješenje'),
+        { t: 'p', x: dosadasnji + ' razrješava se dužnosti izvršnog direktora društva ' + (f.naziv || PRAZNO) + ', danom donošenja ove odluke.' });
     }
-    b.push(tacka(), { t: 'p', x: 'Za direktora društva ' + firma + ', imenuje se ' + opisDirektora(f.zastupnik) + '.' });
-    b.push(tacka(), { t: 'p', x: m ? 'Direktor se imenuje na period od ' + godina(m) + ', počev od dana donošenja ove odluke.' : 'Trajanje mandata direktora nije ograničeno.' });
-    b.push(tacka(), { t: 'p', x: 'Direktor zastupa Društvo prema trećim licima i vodi poslove Društva u skladu sa Statutom i odlukama skupštine Društva.' });
-    b.push(tacka(), { t: 'p', x: 'Ova odluka stupa na snagu danom donošenja. ' + (promjena
-      ? 'Promjena lica ovlašćenog za zastupanje registruje se u Centralnom registru privrednih subjekata u roku od sedam dana od dana donošenja ove odluke.'
-      : 'Direktor se registruje u Centralnom registru privrednih subjekata.') });
-    b.push({ t: 'razmak' }, mjestoDatum(f),
-      jedan ? potpisiOsnivaca(cl) : { t: 'potpisi', lista: cl.map(function (x) { return { uloga: 'Član Društva', ime: x.o.ime }; }) });
+    b.push(clanNaslov(c, 'Imenovanje'),
+      { t: 'p', x: 'Za izvršnog direktora društva ' + (f.naziv || PRAZNO) + ', imenuje se:' },
+      { t: 'p', x: (z.ime || PRAZNO) + ', JMBG ' + (z.jmbg || PRAZNO) + ', sa prebivalištem/boravištem na adresi ' + (z.adresa || PRAZNO) + '.' });
+    b.push(clanNaslov(c, 'Mandat'),
+      { t: 'p', x: m
+        ? 'Izvršni direktor se imenuje na mandat od ' + godina(m).replace('godinu', 'godinu dana') + ', osim ako posebnom odlukom ' + organ + ' ne bude drugačije određeno.'
+        : 'Izvršni direktor se imenuje na mandat koji traje do razrješenja, osim ako posebnom odlukom ' + organ + ' ne bude drugačije određeno.' });
+    b.push(clanNaslov(c, 'Ovlašćenja izvršnog direktora'),
+      { t: 'p', x: 'Izvršni direktor vodi poslovanje društva, organizuje rad društva, izvršava odluke ' + organ + ', zastupa društvo pred državnim organima, organima lokalne samouprave, bankama, pravnim i fizičkim licima, zaključuje ugovore i preduzima druge pravne i faktičke radnje u ime i za račun društva, u skladu sa zakonom, statutom društva i odlukama ' + organ + '.' });
+    b.push(clanNaslov(c, 'Način zastupanja'),
+      { t: 'p', x: 'Izvršni direktor zastupa društvo samostalno i bez ograničenja.' });
+    b.push(clanNaslov(c, 'Registracija'),
+      { t: 'p', x: 'Ova odluka se dostavlja Centralnom registru privrednih subjekata Crne Gore radi registracije podataka o izvršnom direktoru, u skladu sa zakonom.' });
+    b.push(clanNaslov(c, 'Stupanje na snagu'),
+      { t: 'p', x: ima(dosadasnji)
+        ? 'Ova odluka stupa na snagu danom potpisivanja.'
+        : 'Ova odluka stupa na snagu danom potpisivanja, a primjenjuje se od dana registracije društva u Centralnom registru privrednih subjekata Crne Gore.' });
+    b.push(uMjestuDana(f), jedan
+      ? { t: 'potpisi', lista: [{ uloga: 'JEDINI OSNIVAČ / ČLAN DRUŠTVA:', ime: (cl[0] && cl[0].o.ime) || PRAZNO }] }
+      : { t: 'potpisi', lista: cl.map(function (x) { return { uloga: 'Član društva:', ime: x.o.ime }; }) });
     return b;
   }
 
+  // ----- Saglasnost (izjava) za imenovanje izvršnog direktora -----
   function izjavaDirektor(f) {
     var z = f.zastupnik || {};
     return [
-      { t: 'naslov', x: 'IZJAVA' },
-      { t: 'podnaslov', x: 'o prihvatanju imenovanja za direktora' },
+      { t: 'naslov', x: 'SAGLASNOST ZA IMENOVANJE IZVRŠNOG DIREKTORA' },
       { t: 'razmak' },
-      { t: 'p', x: 'Ja, ' + opisDirektora(z) + ', izjavljujem da prihvatam imenovanje za direktora društva sa ograničenom odgovornošću „' +
-        (f.naziv || PRAZNO) + '”, Opština ' + (get(f, 'sjediste.opstina') || PRAZNO) + '.' },
-      { t: 'p', x: 'Izjavljujem da sam poslovno sposobno fizičko lice i da u pogledu mene ne postoje smetnje za imenovanje iz člana 424 stav 2 ' + ZAKON + ', odnosno:' },
-      { t: 'stavka', x: '1) da nijesam osuđivan za krivična djela protiv prava iz rada, intelektualne svojine, platnog prometa i privrednog poslovanja, imovine i službene dužnosti, u roku od tri godine od dana prestanka pravnih posljedica osude;' },
-      { t: 'stavka', x: '2) da nijesam revizor Društva niti lice koje je bilo angažovano u vršenju revizije finansijskih izvještaja Društva;' },
-      { t: 'stavka', x: '3) da mi nije izrečena mjera bezbjednosti zabrane obavljanja djelatnosti koja čini pretežnu djelatnost Društva.' },
-      { t: 'p', x: 'Ako za vrijeme trajanja mandata prestanem da ispunjavam uslove za imenovanje, o tome ću bez odlaganja obavijestiti članove Društva.' },
-      { t: 'p', x: 'Izjavu dajem pod punom materijalnom i krivičnom odgovornošću, radi registracije u Centralnom registru privrednih subjekata.' },
-      { t: 'razmak' }, mjestoDatum(f),
-      { t: 'potpisi', lista: [{ uloga: 'Davalac izjave', ime: z.ime || PRAZNO }] }
+      { t: 'p', x: 'Ja, dolje potpisani/a:' },
+      { t: 'tabela', redovi: [
+        ['Ime i prezime', z.ime || PRAZNO],
+        ['JMBG / broj pasoša', z.jmbg || PRAZNO],
+        ['Adresa prebivališta', z.adresa || PRAZNO],
+        ['Državljanstvo', z.drzavljanstvo || PRAZNO],
+        ['Broj lične karte / pasoša', z.licnaKarta || PRAZNO]
+      ] },
+      { t: 'p', x: 'dajem saglasnost da budem imenovan/a za Izvršnog direktora privrednog društva:' },
+      { t: 'podnaslov', x: f.skraceniNaziv || f.naziv || PRAZNO },
+      { t: 'p', x: 'sa sjedištem na adresi: ' + ulicaBroj(f) + ', koje se osniva u skladu sa Zakonom o privrednim društvima Crne Gore.' },
+      { t: 'p', x: 'Izjavljujem da prihvatam imenovanje na funkciju Izvršnog direktora navedenog društva i da sam saglasan/saglasna da se moje imenovanje registruje kod Centralnog registra privrednih subjekata Crne Gore.' },
+      { t: 'p', x: 'Izjavljujem da ću poslove direktora obavljati u skladu sa zakonom, osnivačkim aktom, statutom društva i odlukama nadležnih organa društva.' },
+      { t: 'p', x: 'Ova saglasnost se daje radi registracije osnivanja društva kod Centralnog registra privrednih subjekata Crne Gore.' },
+      uMjestuDana(f, true),
+      { t: 'potpisi', lista: [{ uloga: 'Davalac saglasnosti:', ime: velikaSlova(z.ime) }] }
     ];
   }
 
@@ -530,13 +655,13 @@
       { t: 'naslov', x: 'OVLAŠĆENJE' },
       { t: 'razmak' },
       { t: 'p', x: (f.naziv || PRAZNO) + ', adresa sjedišta: ' + adresaSjedista(f) + pib +
-        (preduzetnik ? '' : ', koje zastupa direktor ' + (z.ime || PRAZNO)) + ' (u daljem tekstu: Vlastodavac), ovim ovlašćuje' },
+        (preduzetnik ? '' : ', koje zastupa izvršni direktor ' + (z.ime || PRAZNO)) + ' (u daljem tekstu: Vlastodavac), ovim ovlašćuje' },
       { t: 'p', x: (p.ime || PRAZNO) + ', JMBG ' + (p.jmbg || PRAZNO) + ', adresa prebivališta: ' + (p.adresa || PRAZNO) +
         ' (u daljem tekstu: Punomoćnik),' },
       { t: 'p', x: 'da u ime i za račun Vlastodavca preduzima radnje pred Poreskom upravom Crne Gore, uključujući registraciju i upis u registar poreskih obveznika, registraciju za PDV, podnošenje zahtjeva, prijava i drugih podnesaka putem portala IRMS, prijem akata i davanje izjava, kao i pred Centralnim registrom privrednih subjekata i poslovnim bankama, ako je to potrebno radi registracije.' },
       { t: 'p', x: 'Ovim ovlašćenjem ne daje se prokura. Ovlašćenje važi do opoziva.' },
       { t: 'razmak' }, mjestoDatum(f),
-      { t: 'potpisi', lista: [{ uloga: preduzetnik ? 'Preduzetnik' : 'Za Vlastodavca – direktor', ime: (preduzetnik ? get(f, 'osnivaci.0.ime') : z.ime) || PRAZNO }] }
+      { t: 'potpisi', lista: [{ uloga: preduzetnik ? 'Preduzetnik' : 'Za Vlastodavca – izvršni direktor', ime: (preduzetnik ? get(f, 'osnivaci.0.ime') : z.ime) || PRAZNO }] }
     ];
   }
 
@@ -548,24 +673,22 @@
     var doo = /\(DOO\)|ograničenom odgovornošću/i.test(f.pravniOblik || '');
     var cl = clanovi(f);
     var viseClanova = cl.length > 1;
-    var samoDoo = 'Opšti model postoji samo za DOO';
-    var statutom = imenovanjeStatutom(f);
+    var samoDoo = 'Šablon postoji samo za DOO';
     var osnovna = ['naziv', 'sjediste.opstina', 'sjediste.ulica', 'dokumenta.datum'];
     var direktor = ['zastupnik.ime', 'zastupnik.jmbg', 'zastupnik.adresa'];
     var akt = osnovna.concat(['sifraDjelatnosti', 'kapital', 'osnivaci', 'troskovi']);
 
     var lista = [
       viseClanova
-        ? { id: 'ugovor-o-osnivanju', naziv: 'Ugovor o osnivanju', dostupan: doo, razlog: samoDoo, polja: akt, fn: ugovorOsnivanje }
-        : { id: 'odluka-o-osnivanju', naziv: 'Odluka o osnivanju', dostupan: doo, razlog: samoDoo, polja: akt, fn: odlukaOsnivanje },
+        ? { id: 'ugovor-o-osnivanju', naziv: 'Ugovor o osnivanju', dostupan: doo, razlog: samoDoo, polja: akt.concat(direktor), fn: ugovorOsnivanje }
+        : { id: 'odluka-o-osnivanju', naziv: 'Osnivački akt – Odluka o osnivanju', dostupan: doo, razlog: samoDoo,
+          polja: akt.concat(['zastupnik.ime']), fn: odlukaOsnivanje },
       { id: 'statut', naziv: 'Statut', dostupan: doo, razlog: samoDoo,
-        polja: osnovna.concat(['sifraDjelatnosti', 'kapital', 'osnivaci'], statutom ? direktor : []), fn: statut },
-      { id: 'odluka-o-imenovanju-direktora',
-        naziv: statutom ? 'Odluka o razrješenju i imenovanju direktora (promjena direktora)' : 'Odluka o imenovanju direktora',
-        dostupan: doo, razlog: samoDoo,
-        polja: osnovna.concat(direktor, statutom ? ['dokumenta.prethodniDirektor'] : []), fn: odlukaDirektor },
-      { id: 'izjava-direktora', naziv: 'Izjava direktora o prihvatanju imenovanja', dostupan: doo,
-        razlog: samoDoo, polja: osnovna.concat(direktor), fn: izjavaDirektor },
+        polja: osnovna.concat(['sifraDjelatnosti', 'kapital', 'osnivaci'], direktor), fn: statut },
+      { id: 'odluka-o-imenovanju-direktora', naziv: 'Odluka o imenovanju izvršnog direktora', dostupan: doo, razlog: samoDoo,
+        polja: osnovna.concat(direktor), fn: odlukaDirektor },
+      { id: 'izjava-direktora', naziv: 'Saglasnost (izjava) za imenovanje izvršnog direktora', dostupan: doo, razlog: samoDoo,
+        polja: osnovna.concat(direktor, ['zastupnik.drzavljanstvo', 'zastupnik.licnaKarta']), fn: izjavaDirektor },
       { id: 'ovlascenje', naziv: 'Ovlašćenje za zastupanje pred Poreskom upravom', dostupan: true,
         polja: osnovna.concat(['punomocnik.ime', 'punomocnik.jmbg']), fn: ovlascenje }
     ];
@@ -593,7 +716,12 @@
       switch (b.t) {
         case 'naslov': return '<h1>' + esc(b.x) + '</h1>';
         case 'podnaslov': return '<h2>' + esc(b.x) + '</h2>';
-        case 'clan': return '<h3>' + esc(b.x) + '</h3>';
+        case 'clan': return '<h3>' + esc(b.x) + (b.naslov ? '<br>' + esc(b.naslov) : '') + '</h3>';
+        case 'tabela': return '<table class="podaci">' +
+          (b.zaglavlje ? '<thead><tr>' + b.zaglavlje.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead>' : '') +
+          '<tbody>' + b.redovi.map(function (r) {
+            return '<tr>' + r.map(function (c, i) { return (b.zaglavlje || i > 0 ? '<td>' : '<th scope="row">') + esc(c) + (b.zaglavlje || i > 0 ? '</td>' : '</th>'); }).join('') + '</tr>';
+          }).join('') + '</tbody></table>';
         case 'stavka': return '<p class="stavka">' + esc(b.x) + '</p>';
         case 'razmak': return '<div class="razmak"></div>';
         case 'mjestoDatum': return '<p class="mjesto-datum">' + esc(b.x) + '</p>';
@@ -611,6 +739,9 @@
     'h1{text-align:center;font-size:15pt;margin:6px 0 2px;letter-spacing:.06em}' +
     'h2{text-align:center;font-size:12pt;margin:2px 0 10px}' +
     'h3{text-align:center;font-size:12pt;margin:14px 0 4px}' +
+    'table.podaci{border-collapse:collapse;width:100%;margin:6px 0 10px}' +
+    'table.podaci th,table.podaci td{border:1px solid #000;padding:4px 8px;text-align:left;vertical-align:top}' +
+    'table.podaci tbody th{font-weight:normal;width:40%}' +
     'p{text-align:justify;margin:0 0 6px}' +
     'p.stavka{margin-left:1cm}' +
     '.razmak{height:12px}' +
@@ -650,6 +781,26 @@
     return '<w:p>' + ppr + run + '</w:p>';
   }
 
+  function tabelaPodataka(b) {
+    var kolone = (b.zaglavlje || b.redovi[0] || []).length || 1;
+    var sirina = Math.floor(9000 / kolone);
+    var granica = '<w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/>' +
+      '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/>' +
+      '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="000000"/>';
+    var red = function (celije, podebljano) {
+      return '<w:tr><w:trPr><w:cantSplit/></w:trPr>' + celije.map(function (c) {
+        return '<w:tc><w:tcPr><w:tcW w:w="' + sirina + '" w:type="dxa"/></w:tcPr>' + par(c, { jc: 'left', after: 40, b: podebljano }) + '</w:tc>';
+      }).join('') + '</w:tr>';
+    };
+    var grid = '';
+    for (var i = 0; i < kolone; i++) grid += '<w:gridCol w:w="' + sirina + '"/>';
+    return '<w:tbl><w:tblPr><w:tblW w:w="' + (sirina * kolone) + '" w:type="dxa"/><w:tblBorders>' + granica + '</w:tblBorders>' +
+      '<w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr>' +
+      '<w:tblGrid>' + grid + '</w:tblGrid>' +
+      (b.zaglavlje ? red(b.zaglavlje, true) : '') +
+      b.redovi.map(function (r) { return red(r, false); }).join('') + '</w:tbl>';
+  }
+
   function tabelaPotpisa(lista) {
     // Potpisi u dvije kolone, bez okvira.
     var redovi = [];
@@ -675,7 +826,10 @@
       switch (b.t) {
         case 'naslov': return par(b.x, { jc: 'center', b: true, sz: 30, before: 120, after: 40, keep: true });
         case 'podnaslov': return par(b.x, { jc: 'center', b: true, after: 160, keep: true });
-        case 'clan': return par(b.x, { jc: 'center', b: true, before: 200, after: 80, keep: true });
+        case 'clan': return b.naslov
+          ? par(b.x, { jc: 'center', b: true, before: 200, after: 0, keep: true }) + par(b.naslov, { jc: 'center', b: true, after: 80, keep: true })
+          : par(b.x, { jc: 'center', b: true, before: 200, after: 80, keep: true });
+        case 'tabela': return tabelaPodataka(b) + par('', { after: 60 });
         case 'stavka': return par(b.x, { ind: 567 });
         case 'razmak': return par('', { after: 120 });
         case 'mjestoDatum': return par(b.x, { jc: 'left', before: 240 });
