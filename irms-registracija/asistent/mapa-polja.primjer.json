@@ -1,0 +1,67 @@
+{
+  "_napomena": "PRIMJER. Labele i selektori NISU provjereni na stvarnom IRMS portalu. Pokrenite 'node irms-asistent.js snimi', pa kopirajte ovaj fajl u mapa-polja.json i upišite stvarne labele/selektore.",
+  "adresaPortala": "https://irms.tax.gov.me",
+  "koraci": [
+    {
+      "naziv": "Osnovni podaci o pravnom licu",
+      "polja": [
+        { "izvor": "naziv", "labela": "Naziv" },
+        { "izvor": "skraceniNaziv", "labela": "Skraćeni naziv" },
+        { "izvor": "pravniOblik", "labela": "Pravni oblik", "tip": "select" },
+        { "izvor": "registarskiBroj", "labela": "Registarski broj" },
+        { "izvor": "datumOsnivanja", "labela": "Datum osnivanja", "format": "dd.mm.yyyy" },
+        { "izvor": "sifraDjelatnosti", "labela": "Djelatnost", "tip": "autocomplete" }
+      ]
+    },
+    {
+      "naziv": "Adresa sjedišta",
+      "polja": [
+        { "izvor": "sjediste.opstina", "labela": "Opština", "tip": "select" },
+        { "izvor": "sjediste.mjesto", "labela": "Mjesto", "tip": "autocomplete" },
+        { "izvor": "sjediste.ulica", "labela": "Ulica" },
+        { "izvor": "sjediste.broj", "labela": "Broj" },
+        { "izvor": "sjediste.postanskiBroj", "labela": "Poštanski broj" }
+      ]
+    },
+    {
+      "naziv": "Kontakt podaci",
+      "polja": [
+        { "izvor": "email", "labela": "E-mail" },
+        { "izvor": "telefon", "labela": "Telefon" }
+      ]
+    },
+    {
+      "naziv": "Osnivači",
+      "zaSvaki": "osnivaci",
+      "prijeSvakog": { "dugme": "Dodaj", "cekanjeMs": 700 },
+      "polja": [
+        { "izvor": "ime", "labela": "Ime i prezime", "indeksPolja": "posljednje" },
+        { "izvor": "jmbg", "labela": "JMBG", "indeksPolja": "posljednje" },
+        { "izvor": "udio", "labela": "Udio", "format": "broj", "indeksPolja": "posljednje" }
+      ]
+    },
+    {
+      "naziv": "Ovlašćeno lice",
+      "polja": [
+        { "izvor": "zastupnik.ime", "labela": "Ime i prezime" },
+        { "izvor": "zastupnik.jmbg", "labela": "JMBG" }
+      ]
+    },
+    {
+      "naziv": "Bankovni računi",
+      "zaSvaki": "racuni",
+      "prijeSvakog": { "dugme": "Dodaj račun", "cekanjeMs": 700 },
+      "polja": [
+        { "izvor": "banka", "labela": "Banka", "tip": "select", "indeksPolja": "posljednje" },
+        { "izvor": "broj", "labela": "Broj računa", "indeksPolja": "posljednje" }
+      ]
+    },
+    {
+      "naziv": "PDV",
+      "polja": [
+        { "izvor": "pdvObveznik", "labela": "Registracija za PDV", "tip": "checkbox", "format": "da/ne" },
+        { "izvor": "pdvDatum", "labela": "Datum početka", "format": "dd.mm.yyyy" }
+      ]
+    }
+  ]
+}
