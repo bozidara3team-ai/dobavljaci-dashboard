@@ -179,6 +179,7 @@
       'zastupnik.jmbg': 'JMBG direktora',
       'zastupnik.adresa': 'adresa direktora',
       'dokumenta.datum': 'datum donošenja akata',
+      'dokumenta.prethodniDirektor': 'dosadašnji direktor',
       'punomocnik.ime': 'ime punomoćnika',
       'punomocnik.jmbg': 'JMBG punomoćnika'
     };
@@ -461,31 +462,44 @@
   }
 
   // ---------- direktor (član 407, 422-426) ----------
+  /*
+   * Odluka o imenovanju direktora (član 407 stav 1 tačka 2, čl. 422-425).
+   * Ako je prvi direktor imenovan statutom (član 422 stav 4), ista odluka
+   * služi za promjenu direktora: razrješava dosadašnjeg i imenuje novog.
+   */
   function odlukaDirektor(f) {
     var cl = clanovi(f);
     var jedan = cl.length <= 1;
     var m = mandat(f);
+    var promjena = imenovanjeStatutom(f);
+    var dosadasnji = get(f, 'dokumenta.prethodniDirektor');
     var donosilac = jedan
       ? 'jedini član društva ' + ((cl[0] && cl[0].o.ime) || PRAZNO) + ', koji ima ovlašćenja skupštine Društva,'
       : 'skupština Društva';
-    return [
-      { t: 'p', x: 'Na osnovu člana 407 stav 1 tačka 2 i člana 422 ' + ZAKON + ' i Statuta društva „' + (f.naziv || PRAZNO) + '”, ' + donosilac +
-        ' dana ' + datum(get(f, 'dokumenta.datum')) + ' donosi' },
+    var firma = '„' + (f.naziv || PRAZNO) + '”, Opština ' + (get(f, 'sjediste.opstina') || PRAZNO) + ', adresa sjedišta: ' + adresaSjedista(f);
+    var r = 0;
+    var rimski = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+    var tacka = function () { return { t: 'clan', x: rimski[r++] }; };
+
+    var b = [
+      { t: 'p', x: 'Na osnovu člana 407 stav 1 tačka 2' + (promjena ? ', člana 422 i člana 425' : ' i člana 422') + ' ' + ZAKON +
+        ' i Statuta društva „' + (f.naziv || PRAZNO) + '”, ' + donosilac + ' dana ' + datum(get(f, 'dokumenta.datum')) + ' donosi' },
       { t: 'razmak' },
       { t: 'naslov', x: 'ODLUKU' },
-      { t: 'podnaslov', x: 'o imenovanju direktora' },
-      { t: 'clan', x: 'I' },
-      { t: 'p', x: 'Za direktora društva „' + (f.naziv || PRAZNO) + '”, Opština ' + (get(f, 'sjediste.opstina') || PRAZNO) +
-        ', adresa sjedišta: ' + adresaSjedista(f) + ', imenuje se ' + opisDirektora(f.zastupnik) + '.' },
-      { t: 'clan', x: 'II' },
-      { t: 'p', x: m ? 'Direktor se imenuje na period od ' + godina(m) + ', počev od dana donošenja ove odluke.' : 'Trajanje mandata direktora nije ograničeno.' },
-      { t: 'clan', x: 'III' },
-      { t: 'p', x: 'Direktor zastupa Društvo prema trećim licima i vodi poslove Društva u skladu sa Statutom i odlukama skupštine Društva.' },
-      { t: 'clan', x: 'IV' },
-      { t: 'p', x: 'Ova odluka stupa na snagu danom donošenja. Direktor se registruje u Centralnom registru privrednih subjekata.' },
-      { t: 'razmak' }, mjestoDatum(f),
-      jedan ? potpisiOsnivaca(cl) : { t: 'potpisi', lista: cl.map(function (x) { return { uloga: 'Član Društva', ime: x.o.ime }; }) }
+      { t: 'podnaslov', x: promjena ? 'o razrješenju i imenovanju direktora' : 'o imenovanju direktora' }
     ];
+    if (promjena) {
+      b.push(tacka(), { t: 'p', x: (dosadasnji || PRAZNO) + ' razrješava se dužnosti direktora društva ' + firma + ', danom donošenja ove odluke.' });
+    }
+    b.push(tacka(), { t: 'p', x: 'Za direktora društva ' + firma + ', imenuje se ' + opisDirektora(f.zastupnik) + '.' });
+    b.push(tacka(), { t: 'p', x: m ? 'Direktor se imenuje na period od ' + godina(m) + ', počev od dana donošenja ove odluke.' : 'Trajanje mandata direktora nije ograničeno.' });
+    b.push(tacka(), { t: 'p', x: 'Direktor zastupa Društvo prema trećim licima i vodi poslove Društva u skladu sa Statutom i odlukama skupštine Društva.' });
+    b.push(tacka(), { t: 'p', x: 'Ova odluka stupa na snagu danom donošenja. ' + (promjena
+      ? 'Promjena lica ovlašćenog za zastupanje registruje se u Centralnom registru privrednih subjekata u roku od sedam dana od dana donošenja ove odluke.'
+      : 'Direktor se registruje u Centralnom registru privrednih subjekata.') });
+    b.push({ t: 'razmak' }, mjestoDatum(f),
+      jedan ? potpisiOsnivaca(cl) : { t: 'potpisi', lista: cl.map(function (x) { return { uloga: 'Član Društva', ime: x.o.ime }; }) });
+    return b;
   }
 
   function izjavaDirektor(f) {
@@ -546,8 +560,10 @@
         : { id: 'odluka-o-osnivanju', naziv: 'Odluka o osnivanju', dostupan: doo, razlog: samoDoo, polja: akt, fn: odlukaOsnivanje },
       { id: 'statut', naziv: 'Statut', dostupan: doo, razlog: samoDoo,
         polja: osnovna.concat(['sifraDjelatnosti', 'kapital', 'osnivaci'], statutom ? direktor : []), fn: statut },
-      { id: 'odluka-o-imenovanju-direktora', naziv: 'Odluka o imenovanju direktora', dostupan: doo && !statutom,
-        razlog: doo ? 'Direktor je imenovan Statutom (član 422 stav 4)' : samoDoo, polja: osnovna.concat(direktor), fn: odlukaDirektor },
+      { id: 'odluka-o-imenovanju-direktora',
+        naziv: statutom ? 'Odluka o razrješenju i imenovanju direktora (promjena direktora)' : 'Odluka o imenovanju direktora',
+        dostupan: doo, razlog: samoDoo,
+        polja: osnovna.concat(direktor, statutom ? ['dokumenta.prethodniDirektor'] : []), fn: odlukaDirektor },
       { id: 'izjava-direktora', naziv: 'Izjava direktora o prihvatanju imenovanja', dostupan: doo,
         razlog: samoDoo, polja: osnovna.concat(direktor), fn: izjavaDirektor },
       { id: 'ovlascenje', naziv: 'Ovlašćenje za zastupanje pred Poreskom upravom', dostupan: true,

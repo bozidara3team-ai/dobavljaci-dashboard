@@ -31,7 +31,7 @@ U prikazu firme, blok **Osnivačka dokumenta** pravi dokumente iz unesenih podat
 | Odluka o osnivanju | DOO sa jednim osnivačem |
 | Ugovor o osnivanju | DOO sa više osnivača (iznosi uloga i udjeli se računaju iz kapitala) |
 | Statut | DOO |
-| Odluka o imenovanju direktora | DOO, samo ako prvi direktor nije imenovan statutom |
+| Odluka o imenovanju direktora | DOO: prvo imenovanje, ili promjena direktora (razrješenje dosadašnjeg i imenovanje novog) kad je prvi direktor imenovan statutom |
 | Izjava direktora o prihvatanju imenovanja | DOO |
 | Ovlašćenje za zastupanje pred Poreskom upravom (IRMS) | kad zahtjev podnosi punomoćnik (npr. računovođa) |
 

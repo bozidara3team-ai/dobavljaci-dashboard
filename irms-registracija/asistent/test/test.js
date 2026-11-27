@@ -167,8 +167,18 @@ const FIRMA = {
     assert.strictEqual(D._.godina(1), '1 godinu');
     assert.strictEqual(D._.godina(4), '4 godine');
     assert.strictEqual(D._.godina(5), '5 godina');
-    // Podrazumijevano direktor se imenuje statutom, pa posebna odluka nije potrebna.
-    assert.ok(!D.zaFirmu(FD).find((d) => d.id === 'odluka-o-imenovanju-direktora').dostupan);
+    // Kad je prvi direktor imenovan statutom, odluka služi za promjenu direktora.
+    const promjena = D.zaFirmu(FD).find((d) => d.id === 'odluka-o-imenovanju-direktora');
+    assert.ok(promjena.dostupan);
+    assert.match(promjena.naziv, /promjena direktora/);
+    assert.ok(promjena.nedostaje.includes('dosadašnji direktor'));
+    const fp = JSON.parse(JSON.stringify(FD));
+    fp.dokumenta.prethodniDirektor = 'Ana Anić';
+    const xp = tekst(D.zaFirmu(fp).find((d) => d.id === 'odluka-o-imenovanju-direktora'));
+    assert.match(xp, /o razrješenju i imenovanju direktora/);
+    assert.match(xp, /^Ana Anić razrješava se dužnosti direktora/m);
+    assert.match(xp, /Za direktora društva „Test Solutions DOO Podgorica”, Opština Podgorica, .*imenuje se Marko Marković/);
+    assert.match(xp, /u roku od sedam dana/);
     const f = JSON.parse(JSON.stringify(FD));
     f.dokumenta.imenovanje = 'odluka';
     assert.match(tekst(D.zaFirmu(f).find((d) => d.id === 'odluka-o-imenovanju-direktora')), /period od 4 godine/);
